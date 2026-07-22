@@ -16,7 +16,8 @@
 /
 ├── CONTEXT.md
 ├── docs/adr/
-└── src/
+└── app/
+    └── src/
 ```
 
 如果未来演变为大型多包仓库，可在根目录增加 `CONTEXT-MAP.md`，由它指向各上下文自己的 `CONTEXT.md` 和 ADR。
