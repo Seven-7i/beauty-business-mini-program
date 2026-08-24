@@ -55,6 +55,14 @@
 				"navigationBarBackgroundColor": "#F8F9FB",
 				"navigationBarTextStyle": "black"
 			}
+		},
+		{
+			"path": "pages/history-cleanup/index",
+			"style": {
+				"navigationBarTitleText": "预约历史清理",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
 		}
 	],
 	"globalStyle": {

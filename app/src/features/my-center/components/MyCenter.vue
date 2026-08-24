@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import type { MyCenterOverview } from "@/services/my-center-service";
 import { formatLocalDateTime } from "@/utils/date-time-display";
+import StorageCapacityCard from "@/features/storage-capacity/components/StorageCapacityCard.vue";
 
 const props = defineProps<{
   overview?: Readonly<MyCenterOverview>;
@@ -13,16 +13,8 @@ defineEmits<{
   (event: "backup-restore"): void;
   (event: "manage-modules"): void;
   (event: "usage-guide"): void;
+  (event: "cleanup-history"): void;
 }>();
-
-const storageText = computed(() => {
-  if (!props.overview) {
-    return "正在读取本机空间";
-  }
-  const used = (props.overview.currentSizeKb / 1024).toFixed(2);
-  const limit = (props.overview.limitSizeKb / 1024).toFixed(0);
-  return `已使用 ${used}MB / ${limit}MB`;
-});
 </script>
 
 <template>
@@ -33,13 +25,12 @@ const storageText = computed(() => {
       <text class="my-center__description">无需账号，设置和经营数据仅保存在当前设备。</text>
     </view>
 
-    <view class="my-center__summary">
-      <view class="my-center__identity">本机</view>
-      <view>
-        <text class="my-center__summary-title">个人数据空间</text>
-        <text class="my-center__summary-meta">{{ storageText }}</text>
-      </view>
-    </view>
+    <StorageCapacityCard
+      :capacity="overview?.storageCapacity"
+      :loading="loading"
+      @backup="$emit('backup-restore')"
+      @cleanup="$emit('cleanup-history')"
+    />
     <text v-if="errorMessage" class="my-center__error">{{ errorMessage }}</text>
 
     <view class="my-center__menu">
@@ -89,36 +80,8 @@ const storageText = computed(() => {
 .my-center__title { margin-top: 14rpx; color: #172033; font-size: 43rpx; font-weight: 700; }
 .my-center__description { margin-top: 12rpx; color: #737c8c; font-size: 24rpx; line-height: 1.6; }
 
-.my-center__summary {
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-  margin-top: 36rpx;
-  padding: 30rpx;
-  border: 2rpx solid #dde2e9;
-  border-radius: 22rpx;
-  background: #ffffff;
-}
-
-.my-center__identity {
-  display: flex;
-  width: 76rpx;
-  height: 76rpx;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #e8edf7;
-  color: #345cae;
-  font-size: 23rpx;
-  font-weight: 700;
-}
-
-.my-center__summary-title,
-.my-center__summary-meta,
 .my-center__row-title,
 .my-center__row-meta { display: block; }
-.my-center__summary-title { color: #202a3b; font-size: 28rpx; font-weight: 600; }
-.my-center__summary-meta { margin-top: 7rpx; color: #7d8491; font-size: 22rpx; }
 .my-center__error { display: block; margin-top: 16rpx; color: #a93c3c; font-size: 22rpx; }
 
 .my-center__menu {

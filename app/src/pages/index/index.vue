@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
 import DataProtectionErrorState from "@/features/launch/components/DataProtectionErrorState.vue";
@@ -12,16 +12,20 @@ import ModuleManagement from "@/features/my-center/components/ModuleManagement.v
 import MyCenter from "@/features/my-center/components/MyCenter.vue";
 import { useMyCenter } from "@/features/my-center/composables/useMyCenter";
 import { useBackupReminder } from "@/features/backup-reminder/composables/useBackupReminder";
+import { useStorageCapacityReminder } from "@/features/storage-capacity/composables/useStorageCapacityReminder";
 import { useLaunchFlow } from "@/features/launch/composables/useLaunchFlow";
 import {
   createUniStorageAdapter,
   type UniStorageRuntime,
 } from "@/infrastructure/storage/uni-storage-adapter";
+import { subscribeStorageCapacityChanged } from "@/infrastructure/storage/storage-capacity-events";
 import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/backup-file-adapter";
 import { createApplicationDataRepository } from "@/repositories/application-data-repository";
 import { createModuleAuthorizationRepository } from "@/repositories/module-authorization-repository";
 import { createBackupReminderService } from "@/services/backup-reminder-service";
 import { createMyCenterService } from "@/services/my-center-service";
+import { createStorageCapacityService } from "@/services/storage-capacity-service";
+import { formatLocalDateTime } from "@/utils/date-time-display";
 
 const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
 const files = createDefaultWechatBackupFileAdapter();
@@ -49,6 +53,15 @@ const { checkBackupReminder } = useBackupReminder({
   service: backupReminder,
   openBackupRestore,
 });
+const storageCapacityService = createStorageCapacityService({ storage });
+const { checkStorageCapacity } = useStorageCapacityReminder({
+  service: storageCapacityService,
+  openBackupRestore,
+  openHistoryCleanup: () => { void requestHistoryCleanup(); },
+});
+const unsubscribeStorageCapacity = subscribeStorageCapacityChanged(() => {
+  void checkStorageCapacity();
+});
 const activeTab = ref<AppShellTab>("workbench");
 const managingModules = ref(false);
 const myCenterService = createMyCenterService({
@@ -69,19 +82,26 @@ const {
 async function initializePage(): Promise<void> {
   await initialize();
   if (pageState.value === "workbench") {
-    await checkBackupReminder();
+    await checkProtectionReminders();
   }
 }
 
 /** 首次激活后的“继续”不会触发页面 onShow，因此在状态切换后显式读取工作台数据。 */
 async function enterAuthorizedWorkbench(): Promise<void> {
   enterWorkbench();
+  await checkProtectionReminders();
+}
+
+async function checkProtectionReminders(): Promise<void> {
+  if (await checkStorageCapacity()) {
+    return;
+  }
   await checkBackupReminder();
 }
 
 async function checkWorkbenchReminder(): Promise<void> {
   if (pageState.value === "workbench") {
-    await checkBackupReminder();
+    await checkProtectionReminders();
   }
   if (pageState.value === "workbench" && activeTab.value === "mine") {
     await refreshMyCenter();
@@ -99,7 +119,7 @@ function selectTab(tab: AppShellTab): void {
   if (tab === "mine") {
     void refreshMyCenter();
   } else if (tab === "workbench") {
-    void checkBackupReminder();
+    void checkProtectionReminders();
   }
 }
 
@@ -127,7 +147,43 @@ function openBeautyModule(): void {
   uni.navigateTo({ url: "/pages/beauty/index" });
 }
 
+async function requestHistoryCleanup(): Promise<void> {
+  try {
+    const data = await applicationData.readSnapshot();
+    const lastExportedAt = data.backupMetadata.lastExportedAt;
+    if (!lastExportedAt) {
+      uni.showModal({
+        title: "请先备份",
+        content: "清理预约历史后无法恢复。请先导出一份完整备份，再回来清理。",
+        confirmText: "先去备份",
+        cancelText: "暂不清理",
+        success(result) {
+          if (result.confirm) {
+            openBackupRestore();
+          }
+        },
+      });
+      return;
+    }
+    uni.showModal({
+      title: "进入历史清理？",
+      content: `最近完整备份：${formatLocalDateTime(lastExportedAt)}。历史记录需逐条确认删除，删除后无法撤销。`,
+      confirmText: "继续清理",
+      cancelText: "暂不清理",
+      confirmColor: "#9A4A47",
+      success(result) {
+        if (result.confirm) {
+          uni.navigateTo({ url: "/pages/history-cleanup/index" });
+        }
+      },
+    });
+  } catch {
+    uni.showToast({ title: "本机数据读取失败，请稍后重试", icon: "none" });
+  }
+}
+
 onMounted(initializePage);
+onUnmounted(unsubscribeStorageCapacity);
 onShow(checkWorkbenchReminder);
 </script>
 
@@ -184,6 +240,7 @@ onShow(checkWorkbenchReminder);
           @backup-restore="openBackupRestore"
           @manage-modules="openModuleManagement"
           @usage-guide="showUsageGuide"
+          @cleanup-history="requestHistoryCleanup"
         />
         <AppBottomNavigation
           :active-tab="activeTab"

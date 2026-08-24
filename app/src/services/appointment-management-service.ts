@@ -1,4 +1,5 @@
 import type {
+  AppointmentStatus,
   AppointmentUsageV1,
   CancelledAppointmentV1,
   CompletedAppointmentV1,
@@ -68,6 +69,12 @@ export interface CompleteAppointmentInput {
   actualUsageInputs: readonly AppointmentUsageInput[];
   /** 完成时可同步修正预约备注。 */
   note?: string;
+}
+
+export interface DeleteAppointmentExpectation {
+  appointmentId: string;
+  expectedStatus: AppointmentStatus;
+  expectedUpdatedAt: string;
 }
 
 /** 时间冲突不属于保存失败，页面应展示冲突并允许用户确认继续。 */
@@ -425,6 +432,25 @@ export function createAppointmentManagementService(
     return persisted;
   }
 
+  async function deleteAppointmentIfUnchanged(
+    expectation: DeleteAppointmentExpectation,
+  ): Promise<void> {
+    await repository.applyBusinessMutation({
+      kind: "delete-appointment",
+      appointmentId: expectation.appointmentId,
+      expectedStatus: expectation.expectedStatus,
+      expectedUpdatedAt: expectation.expectedUpdatedAt,
+      updatedAt: now().toISOString(),
+    });
+    if (
+      (await readData()).appointments.some(
+        (appointment) => appointment.id === expectation.appointmentId,
+      )
+    ) {
+      throw new Error("预约删除后读回校验失败");
+    }
+  }
+
   async function deleteAppointment(appointmentId: string): Promise<void> {
     const data = await readData();
     const current = data.appointments.find(
@@ -433,20 +459,11 @@ export function createAppointmentManagementService(
     if (!current) {
       throw new Error("预约不存在");
     }
-    await repository.applyBusinessMutation({
-      kind: "delete-appointment",
+    await deleteAppointmentIfUnchanged({
       appointmentId: current.id,
       expectedStatus: current.status,
       expectedUpdatedAt: current.updatedAt,
-      updatedAt: now().toISOString(),
     });
-    if (
-      (await readData()).appointments.some(
-        (appointment) => appointment.id === current.id,
-      )
-    ) {
-      throw new Error("预约删除后读回校验失败");
-    }
   }
 
   return {
@@ -458,6 +475,7 @@ export function createAppointmentManagementService(
     correctCompletedAppointment,
     revertCompletedAppointment,
     deleteAppointment,
+    deleteAppointmentIfUnchanged,
   };
 }
 

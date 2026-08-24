@@ -5,6 +5,7 @@ import type {
 import type { SelectedBusinessModuleData } from "@/domain/module-data";
 import { isBusinessModuleId } from "@/domain/business-module";
 import type { StorageAdapter } from "@/infrastructure/storage/uni-storage-adapter";
+import { publishStorageCapacityChanged } from "@/infrastructure/storage/storage-capacity-events";
 import { runExclusiveStorageOperation } from "@/infrastructure/storage/storage-operation-lock";
 import type { ApplicationDataRollbackFileAdapter } from "@/infrastructure/wechat/backup-file-adapter";
 import {
@@ -974,8 +975,8 @@ export function createApplicationDataRepository(
       });
     },
 
-    applyBusinessMutation(mutation) {
-      return runExclusive(async () => {
+    async applyBusinessMutation(mutation) {
+      await runExclusive(async () => {
         await recoverInternal();
         const previous = await readWithoutRecovery();
         const startedAt = now();
@@ -1041,6 +1042,12 @@ export function createApplicationDataRepository(
           mutationPlan,
         );
       });
+      // 容量查询失败不能把已经提交成功的业务命令伪装成保存失败。
+      try {
+        publishStorageCapacityChanged(await storage.getCapacityInfo());
+      } catch {
+        // 下次启动或回到首页仍会重新检查容量。
+      }
     },
 
     recordSuccessfulExport(exportedAt, fileName) {

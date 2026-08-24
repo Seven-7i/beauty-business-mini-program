@@ -32,8 +32,16 @@ describe("我的页面摘要服务", () => {
       unlockedModules: ["beauty"],
       lastExportedAt: "2026-08-08T08:00:00.000Z",
       lastExportFileName: "美容管家备份_20260808_1600.json",
-      currentSizeKb: 128,
-      limitSizeKb: 10240,
+      storageCapacity: {
+        currentSizeKb: 128,
+        limitSizeKb: 10240,
+        targetSizeKb: 7168,
+        keyCount: 1,
+        usedPercentOfLimit: 1.25,
+        usedPercentOfTarget: 128 / 7168 * 100,
+        remainingToTargetKb: 7040,
+        status: "within-target",
+      },
     });
   });
 });

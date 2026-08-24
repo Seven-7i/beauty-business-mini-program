@@ -1,6 +1,10 @@
 import type { BusinessModuleId } from "@/domain/business-module";
 import type { StorageAdapter } from "@/infrastructure/storage/uni-storage-adapter";
 import type { ApplicationDataRepository } from "@/repositories/application-data-repository";
+import {
+  summarizeStorageCapacity,
+  type StorageCapacitySummary,
+} from "@/services/storage-capacity-service";
 
 /** “我的”页面只展示本机数据摘要，不读取或暴露具体业务记录。 */
 export interface MyCenterOverview {
@@ -10,10 +14,8 @@ export interface MyCenterOverview {
   lastExportedAt?: string;
   /** 最近成功导出的产品备份文件名。 */
   lastExportFileName?: string;
-  /** 微信 Storage 当前占用，单位 KB。 */
-  currentSizeKb: number;
-  /** 微信 Storage 配额上限，单位 KB。 */
-  limitSizeKb: number;
+  /** 微信 Storage 当前占用、7MB 产品目标线和设备配额摘要。 */
+  storageCapacity: StorageCapacitySummary;
 }
 
 export interface MyCenterServiceOptions {
@@ -35,8 +37,7 @@ export function createMyCenterService(options: MyCenterServiceOptions) {
       unlockedModules: data.unlockedModules,
       lastExportedAt: data.backupMetadata.lastExportedAt,
       lastExportFileName: data.backupMetadata.lastExportFileName,
-      currentSizeKb: capacity.currentSizeKb,
-      limitSizeKb: capacity.limitSizeKb,
+      storageCapacity: summarizeStorageCapacity(capacity),
     };
   }
 

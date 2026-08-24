@@ -2,6 +2,7 @@
 import { computed, ref, type DeepReadonly } from "vue";
 import type { CustomerV1 } from "@/domain/data-schema";
 import type { CustomerBusinessSummary } from "@/services/statistics-service";
+import { filterCustomers, type CustomerFilter } from "../customer-filter";
 
 const props = defineProps<{
   customers: readonly CustomerV1[];
@@ -16,19 +17,11 @@ const emit = defineEmits<{
   (event: "delete", customer: DeepReadonly<CustomerV1>): void;
 }>();
 
-type CustomerFilter = "all" | CustomerV1["status"];
 const keyword = ref("");
 const filter = ref<CustomerFilter>("all");
-const visibleCustomers = computed(() => {
-  const query = keyword.value.trim();
-  return props.customers.filter(
-    (customer) =>
-      (filter.value === "all" || customer.status === filter.value) &&
-      (!query ||
-        customer.nickname.includes(query) ||
-        customer.phone.includes(query)),
-  );
-});
+const visibleCustomers = computed(() =>
+  filterCustomers(props.customers, keyword.value, filter.value),
+);
 
 function formatCurrency(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`;

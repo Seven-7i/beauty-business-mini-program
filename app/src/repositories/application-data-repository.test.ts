@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   StorageCapacityInfo,
 } from "@/infrastructure/storage/uni-storage-adapter";
+import { subscribeStorageCapacityChanged } from "@/infrastructure/storage/storage-capacity-events";
 import type { ApplicationDataRollbackFileAdapter } from "@/infrastructure/wechat/backup-file-adapter";
 import { createApplicationDataRepository } from "./application-data-repository";
 import { createModuleAuthorizationRepository } from "./module-authorization-repository";
@@ -17,6 +18,7 @@ class MemoryStorage implements StorageAdapter {
   failRemove?: (key: string) => Error | undefined;
   capacityKeyFilter?: (key: string) => boolean;
   beforeGet?: (key: string) => Promise<void>;
+  capacityFailure?: Error;
 
   constructor(initial: Record<string, unknown> = {}) {
     for (const [key, value] of Object.entries(initial)) {
@@ -50,6 +52,9 @@ class MemoryStorage implements StorageAdapter {
   }
 
   async getCapacityInfo(): Promise<StorageCapacityInfo> {
+    if (this.capacityFailure) {
+      throw this.capacityFailure;
+    }
     return {
       keys: [...this.values.keys()].filter(
         this.capacityKeyFilter ?? (() => true),
@@ -293,6 +298,37 @@ describe("应用完整数据仓储", () => {
         firstBusinessDataAt: NOW.toISOString(),
       },
     });
+  });
+
+  it("业务写入提交后广播容量，容量查询失败也不把成功保存误报为失败", async () => {
+    const { repository, storage } = createRepository();
+    const received: StorageCapacityInfo[] = [];
+    const unsubscribe = subscribeStorageCapacityChanged((info) => {
+      received.push(info);
+    });
+    try {
+      await repository.applyBusinessMutation({
+        kind: "upsert-inventory-item",
+        item: createData("item-1", "精华液").inventoryItems[0],
+      });
+      expect(received).toEqual([
+        expect.objectContaining({ currentSizeKb: 1, limitSizeKb: 10240 }),
+      ]);
+
+      storage.capacityFailure = new Error("getStorageInfo:fail busy");
+      await expect(repository.applyBusinessMutation({
+        kind: "upsert-inventory-item",
+        expectedUpdatedAt: NOW.toISOString(),
+        item: {
+          ...createData("item-1", "精华液").inventoryItems[0],
+          name: "更新后的精华液",
+          updatedAt: "2026-08-06T11:00:00.000Z",
+        },
+      })).resolves.toBeUndefined();
+      expect((await repository.readSnapshot()).inventoryItems[0]?.name).toBe("更新后的精华液");
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("保存服务项目时不重写无关库存实体集合", async () => {
