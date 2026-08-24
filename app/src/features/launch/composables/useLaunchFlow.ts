@@ -88,10 +88,6 @@ export function useLaunchFlow(options: UseLaunchFlowOptions) {
     setPageTitle("工作台");
   }
 
-  function openCapabilityCheck(): void {
-    uni.navigateTo({ url: "/pages/capability-check/index" });
-  }
-
   function openBackupRestore(): void {
     uni.navigateTo({ url: "/pages/backup-restore/index" });
   }
@@ -104,7 +100,6 @@ export function useLaunchFlow(options: UseLaunchFlowOptions) {
     initialize,
     unlock,
     enterWorkbench,
-    openCapabilityCheck,
     openBackupRestore,
   };
 }

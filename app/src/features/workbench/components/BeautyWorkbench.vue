@@ -1,14 +1,8 @@
 <script setup lang="ts">
-defineProps<{
-  /** 阶段 0 诊断入口仅在开发构建中展示。 */
-  showCapabilityCheck: boolean;
-}>();
-
 defineEmits<{
   (event: "open-module"): void;
   (event: "manage-modules"): void;
   (event: "backup-restore"): void;
-  (event: "check-capabilities"): void;
 }>();
 
 </script>
@@ -59,13 +53,6 @@ defineEmits<{
       <text class="workbench__manage-arrow">›</text>
     </button>
 
-    <button
-      v-if="showCapabilityCheck"
-      class="workbench__capability-check"
-      @click="$emit('check-capabilities')"
-    >
-      阶段 0 · 基础能力检查
-    </button>
   </view>
 </template>
 
@@ -224,14 +211,6 @@ defineEmits<{
   margin-top: 7rpx;
   color: #7b8493;
   font-size: 21rpx;
-}
-
-.workbench__capability-check {
-  margin-top: 26rpx;
-  background: transparent;
-  color: #6c7585;
-  font-size: 23rpx;
-  text-decoration: underline;
 }
 
 .workbench__manage-arrow {

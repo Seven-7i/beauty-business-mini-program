@@ -9,14 +9,6 @@
 			}
 		},
 		{
-			"path": "pages/capability-check/index",
-			"style": {
-				"navigationBarTitleText": "基础能力检查",
-				"navigationBarBackgroundColor": "#F8F9FB",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
 			"path": "pages/backup-restore/index",
 			"style": {
 				"navigationBarTitleText": "备份与恢复",

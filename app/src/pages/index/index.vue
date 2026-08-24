@@ -39,7 +39,6 @@ const {
   initialize,
   unlock,
   enterWorkbench,
-  openCapabilityCheck,
   openBackupRestore,
 } = useLaunchFlow({ moduleAuthorization, applicationData });
 
@@ -50,7 +49,6 @@ const { checkBackupReminder } = useBackupReminder({
   service: backupReminder,
   openBackupRestore,
 });
-const showCapabilityCheck = import.meta.env.DEV;
 const activeTab = ref<AppShellTab>("workbench");
 const managingModules = ref(false);
 const myCenterService = createMyCenterService({
@@ -174,11 +172,9 @@ onShow(checkWorkbenchReminder);
       <template v-else>
         <BeautyWorkbench
           v-if="activeTab === 'workbench'"
-          :show-capability-check="showCapabilityCheck"
           @open-module="openBeautyModule"
           @manage-modules="openModuleManagement"
           @backup-restore="openBackupRestore"
-          @check-capabilities="openCapabilityCheck"
         />
         <MyCenter
           v-else
