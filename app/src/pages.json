@@ -3,14 +3,73 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				"navigationBarTitleText": "欢迎使用",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/capability-check/index",
+			"style": {
+				"navigationBarTitleText": "基础能力检查",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/backup-restore/index",
+			"style": {
+				"navigationBarTitleText": "备份与恢复",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/inventory/index",
+			"style": {
+				"navigationBarTitleText": "物品库存",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/beauty/index",
+			"style": {
+				"navigationBarTitleText": "美容管理",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/beauty-project/index",
+			"style": {
+				"navigationBarTitleText": "服务项目",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/customer/index",
+			"style": {
+				"navigationBarTitleText": "顾客管理",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/appointment/index",
+			"style": {
+				"navigationBarTitleText": "预约",
+				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTextStyle": "black"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarTitleText": "庄月空间",
+		"navigationBarBackgroundColor": "#F8F9FB",
+		"backgroundColor": "#F8F9FB",
+		"backgroundTextStyle": "dark"
 	}
 }

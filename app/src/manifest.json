@@ -1,7 +1,7 @@
 {
-    "name" : "",
+    "name" : "庄月空间",
     "appid" : "",
-    "description" : "",
+    "description" : "个人学习、工具与项目模块空间",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -50,7 +50,8 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wx4275c797d569957a",
+        "mergeVirtualHostAttributes" : true,
         "setting" : {
             "urlCheck" : false
         },
