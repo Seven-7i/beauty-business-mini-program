@@ -241,6 +241,7 @@ onShow(checkWorkbenchReminder);
           @manage-modules="openModuleManagement"
           @usage-guide="showUsageGuide"
           @cleanup-history="requestHistoryCleanup"
+          @retry="refreshMyCenter"
         />
         <AppBottomNavigation
           :active-tab="activeTab"

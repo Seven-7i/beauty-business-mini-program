@@ -32,6 +32,7 @@ export function useAppointmentManagement(
   const loading = shallowRef(false);
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
+  const errorKind = shallowRef<"" | "read" | "operation">("");
   const activeCustomers = computed(() =>
     customers.value.filter((customer) => customer.status === "active"),
   );
@@ -64,6 +65,7 @@ export function useAppointmentManagement(
   async function refresh(): Promise<void> {
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const data = await service.readData();
       customers.value = data.customers;
@@ -71,6 +73,7 @@ export function useAppointmentManagement(
       appointments.value = data.appointments;
       inventoryItems.value = data.inventoryItems;
     } catch {
+      errorKind.value = "read";
       errorMessage.value = "预约资料读取失败，为避免覆盖原数据，请返回后重试";
     } finally {
       loading.value = false;
@@ -82,6 +85,7 @@ export function useAppointmentManagement(
   ): Promise<AppointmentSaveResult> {
     submitting.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await service.savePendingAppointment(input);
       await refresh();
@@ -92,6 +96,7 @@ export function useAppointmentManagement(
       }
       errorMessage.value =
         error instanceof Error ? error.message : "预约保存失败，请稍后重试";
+      errorKind.value = "operation";
       return { kind: "failed" };
     } finally {
       submitting.value = false;
@@ -104,11 +109,13 @@ export function useAppointmentManagement(
   ): Promise<boolean> {
     submitting.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await operation();
       await refresh();
       return true;
     } catch (error) {
+      errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : fallbackMessage;
       return false;
@@ -129,6 +136,7 @@ export function useAppointmentManagement(
     loading: readonly(loading),
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
     refresh,
     savePendingAppointment,
     cancelAppointment: (input: CancelAppointmentInput) =>

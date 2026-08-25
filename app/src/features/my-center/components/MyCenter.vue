@@ -2,6 +2,7 @@
 import type { MyCenterOverview } from "@/services/my-center-service";
 import { formatLocalDateTime } from "@/utils/date-time-display";
 import StorageCapacityCard from "@/features/storage-capacity/components/StorageCapacityCard.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
 const props = defineProps<{
   overview?: Readonly<MyCenterOverview>;
@@ -14,6 +15,7 @@ defineEmits<{
   (event: "manage-modules"): void;
   (event: "usage-guide"): void;
   (event: "cleanup-history"): void;
+  (event: "retry"): void;
 }>();
 </script>
 
@@ -31,7 +33,13 @@ defineEmits<{
       @backup="$emit('backup-restore')"
       @cleanup="$emit('cleanup-history')"
     />
-    <text v-if="errorMessage" class="my-center__error">{{ errorMessage }}</text>
+    <RecoverableErrorNotice
+      v-if="errorMessage"
+      :message="errorMessage"
+      retryable
+      :retrying="loading"
+      @retry="$emit('retry')"
+    />
 
     <view class="my-center__menu">
       <button class="my-center__row" :disabled="loading" @click="$emit('backup-restore')">
@@ -82,7 +90,6 @@ defineEmits<{
 
 .my-center__row-title,
 .my-center__row-meta { display: block; }
-.my-center__error { display: block; margin-top: 16rpx; color: #a93c3c; font-size: 22rpx; }
 
 .my-center__menu {
   margin-top: 28rpx;
@@ -101,10 +108,16 @@ defineEmits<{
   padding: 22rpx 28rpx;
   background: #ffffff;
   text-align: left;
+  gap: 18rpx;
+}
+
+.my-center__row > view {
+  min-width: 0;
+  flex: 1;
 }
 
 .my-center__row + .my-center__row { border-top: 2rpx solid #edf0f4; }
-.my-center__row-title { color: #283247; font-size: 26rpx; font-weight: 600; }
-.my-center__row-meta { margin-top: 7rpx; color: #848b98; font-size: 21rpx; }
-.my-center__arrow { color: #737d8d; font-size: 48rpx; font-weight: 300; }
+.my-center__row-title { color: #283247; font-size: 26rpx; font-weight: 600; overflow-wrap: anywhere; }
+.my-center__row-meta { margin-top: 7rpx; color: #848b98; font-size: 21rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.my-center__arrow { flex: none; color: #737d8d; font-size: 48rpx; font-weight: 300; }
 </style>

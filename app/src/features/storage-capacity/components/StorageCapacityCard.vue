@@ -131,6 +131,7 @@ const statusText = computed(() => {
   color: #757f90;
   font-size: 21rpx;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .storage-card__meta {
@@ -194,13 +195,25 @@ const statusText = computed(() => {
 .storage-card__button {
   min-height: 72rpx;
   margin: 0;
-  padding: 0 22rpx;
+  padding: 14rpx 22rpx;
   border: 2rpx solid #d5dce6;
   border-radius: 12rpx;
   background: #ffffff;
   color: #3c4a61;
   font-size: 22rpx;
-  line-height: 68rpx;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 360px) {
+  .storage-card__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .storage-card__button {
+    width: 100%;
+  }
 }
 
 .storage-card__button--primary {

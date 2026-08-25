@@ -2,6 +2,7 @@
 import { onMounted } from "vue";
 import type { HistoryCleanupService } from "@/services/history-cleanup-service";
 import { formatLocalDateTime } from "@/utils/date-time-display";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import { useHistoryCleanup } from "../composables/useHistoryCleanup";
 
 const props = defineProps<{ service: HistoryCleanupService }>();
@@ -14,6 +15,7 @@ const {
   deleting,
   hasMore,
   errorMessage,
+  errorKind,
   refresh,
   loadMore,
   deleteRecord,
@@ -89,9 +91,13 @@ onMounted(refresh);
       </button>
     </view>
 
-    <view v-if="errorMessage" class="history-cleanup__error" role="alert">
-      {{ errorMessage }}
-    </view>
+    <RecoverableErrorNotice
+      v-if="errorMessage"
+      :message="errorMessage"
+      :retryable="errorKind === 'read'"
+      :retrying="loading"
+      @retry="refresh"
+    />
     <view v-else-if="loading" class="history-cleanup__empty">
       正在读取本机预约历史
     </view>
@@ -198,12 +204,12 @@ onMounted(refresh);
 
 .history-cleanup__date {
   display: flex;
-  height: 78rpx;
+  min-height: 78rpx;
   box-sizing: border-box;
   align-items: center;
   justify-content: space-between;
   margin-top: 16rpx;
-  padding: 0 20rpx;
+  padding: 14rpx 20rpx;
   border: 2rpx solid #ccd5e1;
   border-radius: 12rpx;
   color: #263248;
@@ -216,16 +222,16 @@ onMounted(refresh);
 }
 
 .history-cleanup__refresh {
-  height: 76rpx;
+  min-height: 76rpx;
   margin-top: 16rpx;
   border-radius: 12rpx;
   background: #3159b5;
   color: #ffffff;
   font-size: 23rpx;
-  line-height: 76rpx;
+  padding: 12rpx 18rpx;
+  line-height: 1.35;
 }
 
-.history-cleanup__error,
 .history-cleanup__empty {
   margin-top: 22rpx;
   padding: 24rpx;
@@ -233,12 +239,6 @@ onMounted(refresh);
   font-size: 22rpx;
   line-height: 1.55;
   text-align: center;
-}
-
-.history-cleanup__error {
-  border: 2rpx solid #e0b3b0;
-  background: #fff5f4;
-  color: #92433f;
 }
 
 .history-cleanup__empty {
@@ -271,13 +271,17 @@ onMounted(refresh);
 }
 
 .history-record__heading {
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16rpx;
+  flex-wrap: wrap;
 }
 
 .history-record__identity {
   min-width: 0;
+  flex: 1;
   gap: 10rpx;
+  flex-wrap: wrap;
 }
 
 .history-record__customer {
@@ -316,24 +320,26 @@ onMounted(refresh);
 }
 
 .history-record__delete {
-  height: 70rpx;
+  min-height: 70rpx;
   margin-top: 18rpx;
   border: 2rpx solid #dfc0bd;
   border-radius: 11rpx;
   background: #ffffff;
   color: #984742;
   font-size: 21rpx;
-  line-height: 66rpx;
+  padding: 12rpx 18rpx;
+  line-height: 1.35;
 }
 
 .history-cleanup__more {
-  height: 76rpx;
+  min-height: 76rpx;
   margin-top: 18rpx;
   border: 2rpx solid #ccd5e1;
   border-radius: 12rpx;
   background: #ffffff;
   color: #3d4c65;
   font-size: 22rpx;
-  line-height: 72rpx;
+  padding: 12rpx 18rpx;
+  line-height: 1.35;
 }
 </style>

@@ -14,6 +14,7 @@ import InventoryItemList from "./InventoryItemList.vue";
 import InventoryItemProfileForm from "./InventoryItemProfileForm.vue";
 import InventoryMovementList from "./InventoryMovementList.vue";
 import InventoryMovementEditForm from "./InventoryMovementEditForm.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import { useInventoryManagement } from "../composables/useInventoryManagement";
 
 const props = defineProps<{
@@ -34,6 +35,7 @@ const {
   loading,
   submitting,
   errorMessage,
+  errorKind,
   refresh,
   createItem,
   adjustInventory,
@@ -202,9 +204,13 @@ onMounted(refresh);
       :submitting="submitting"
       @submit="handleCreate"
     />
-    <view v-if="errorMessage" class="inventory-management__error" role="alert">
-      {{ errorMessage }}
-    </view>
+    <RecoverableErrorNotice
+      v-if="errorMessage"
+      :message="errorMessage"
+      :retryable="errorKind === 'read'"
+      :retrying="loading"
+      @retry="refresh"
+    />
     <view v-if="loading" class="inventory-management__loading">正在读取本机库存</view>
     <template v-else>
       <InventoryAdjustmentForm
@@ -296,18 +302,11 @@ onMounted(refresh);
   font-size: 22rpx;
 }
 
-.inventory-management__error,
 .inventory-management__loading {
   margin-top: 22rpx;
   padding: 18rpx 20rpx;
   border-radius: 12rpx;
   font-size: 23rpx;
-}
-
-.inventory-management__error {
-  border: 2rpx solid #e2b5b5;
-  background: #fff5f4;
-  color: #97423f;
 }
 
 .inventory-management__loading {

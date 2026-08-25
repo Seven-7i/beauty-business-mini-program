@@ -12,6 +12,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  (event: "view", customer: DeepReadonly<CustomerV1>): void;
   (event: "edit", customer: DeepReadonly<CustomerV1>): void;
   (event: "toggle-status", customer: DeepReadonly<CustomerV1>): void;
   (event: "delete", customer: DeepReadonly<CustomerV1>): void;
@@ -65,6 +66,7 @@ function formatCurrency(cents: number): string {
         <text>累计成交 {{ formatCurrency(businessSummaries[customer.id]?.transactionAmountCents ?? 0) }}</text>
       </view>
       <view class="customer-card__actions">
+        <button class="customer-card__view" :disabled="disabled" @click="emit('view', customer)">查看详情</button>
         <button :disabled="disabled" @click="emit('edit', customer)">编辑</button>
         <button :disabled="disabled" @click="emit('toggle-status', customer)">{{ customer.status === "active" ? "停用" : "重新启用" }}</button>
         <button class="customer-card__delete" :disabled="disabled" @click="emit('delete', customer)">彻底删除</button>
@@ -81,20 +83,22 @@ function formatCurrency(cents: number): string {
 .customer-list__count { color: #7a8597; font-size: 21rpx; }
 .customer-list__search { height: 72rpx; box-sizing: border-box; margin-top: 14rpx; padding: 0 20rpx; border: 2rpx solid #dce2ea; border-radius: 12rpx; background: #fff; font-size: 23rpx; }
 .customer-list__filters { gap: 10rpx; margin-top: 12rpx; }
-.customer-list__filters button { height: 68rpx; padding: 0 24rpx; border: 2rpx solid #d9dfe8; border-radius: 34rpx; background: #f7f8fa; color: #68748a; font-size: 20rpx; line-height: 66rpx; }
+.customer-list__filters { flex-wrap: wrap; }
+.customer-list__filters button { min-width: 120rpx; min-height: 68rpx; flex: 1; padding: 12rpx 24rpx; border: 2rpx solid #d9dfe8; border-radius: 34rpx; background: #f7f8fa; color: #68748a; font-size: 20rpx; line-height: 1.35; }
 .customer-list__filters .customer-list__filter--active { border-color: #3159b5; background: #e8eefb; color: #3159b5; }
 .customer-list__empty { margin-top: 18rpx; padding: 32rpx 20rpx; border: 2rpx dashed #d5dbe4; border-radius: 14rpx; color: #7c8798; font-size: 22rpx; text-align: center; }
 .customer-card { margin-top: 16rpx; padding: 24rpx; border: 2rpx solid #e0e5ec; border-radius: 17rpx; background: #fff; }
-.customer-card__heading { justify-content: space-between; gap: 16rpx; }
-.customer-card__identity { gap: 12rpx; }
-.customer-card__name { color: #243047; font-size: 27rpx; font-weight: 700; }
-.customer-card__phone { color: #42516b; font-size: 24rpx; }
+.customer-card__heading { align-items: flex-start; justify-content: space-between; gap: 16rpx; flex-wrap: wrap; }
+.customer-card__identity { min-width: 0; flex: 1; gap: 12rpx; flex-wrap: wrap; }
+.customer-card__name { min-width: 0; color: #243047; font-size: 27rpx; font-weight: 700; overflow-wrap: anywhere; }
+.customer-card__phone { flex: none; color: #42516b; font-size: 24rpx; white-space: nowrap; }
 .customer-card__status { padding: 4rpx 10rpx; border-radius: 8rpx; background: #e5f2ea; color: #34704d; font-size: 18rpx; }
 .customer-card__status--inactive { background: #eceef2; color: #737d8d; }
-.customer-card__addresses { display: flex; margin-top: 15rpx; flex-direction: column; gap: 7rpx; color: #68748a; font-size: 21rpx; line-height: 1.5; }
+.customer-card__addresses { display: flex; margin-top: 15rpx; flex-direction: column; gap: 7rpx; color: #68748a; font-size: 21rpx; line-height: 1.5; overflow-wrap: anywhere; }
 .customer-card__summary { display: flex; gap: 12rpx; margin-top: 15rpx; flex-wrap: wrap; }
 .customer-card__summary text { padding: 8rpx 12rpx; border-radius: 9rpx; background: #eef2f7; color: #526078; font-size: 19rpx; }
-.customer-card__actions { justify-content: flex-end; gap: 8rpx; margin-top: 18rpx; }
-.customer-card__actions button { height: 68rpx; padding: 0 20rpx; border-radius: 10rpx; background: #edf1f7; color: #445675; font-size: 20rpx; line-height: 68rpx; }
+.customer-card__actions { justify-content: flex-end; gap: 8rpx; margin-top: 18rpx; flex-wrap: wrap; }
+.customer-card__actions button { min-width: 124rpx; min-height: 68rpx; flex: 1; padding: 12rpx 20rpx; border-radius: 10rpx; background: #edf1f7; color: #445675; font-size: 20rpx; line-height: 1.35; }
+.customer-card__actions .customer-card__view { background: #e8eefb; color: #31549e; }
 .customer-card__actions .customer-card__delete { background: #fff0ef; color: #9a4a47; }
 </style>

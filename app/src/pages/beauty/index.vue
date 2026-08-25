@@ -148,6 +148,7 @@ onShow(refreshActiveTab);
       @open-projects="openProjects"
       @open-customers="openCustomers"
       @open-appointments="openAppointments"
+      @retry="refresh"
     />
     <AppointmentCalendar
       v-else-if="activeTab === 'schedule'"
@@ -161,12 +162,14 @@ onShow(refreshActiveTab);
       @next-month="appointmentCalendar.nextMonth"
       @select-date="appointmentCalendar.selectDate"
       @open-appointments="openAppointments"
+      @retry="appointmentCalendar.refresh"
     />
     <BeautyReports
       v-else-if="activeTab === 'reports'"
       :overview="overview"
       :loading="loading"
       :error-message="errorMessage"
+      @retry="refresh"
     />
     <BackupRestorePanel
       v-else

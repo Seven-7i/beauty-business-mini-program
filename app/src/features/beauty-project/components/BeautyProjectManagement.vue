@@ -7,6 +7,7 @@ import type {
 } from "@/services/beauty-project-management-service";
 import BeautyProjectForm from "./BeautyProjectForm.vue";
 import BeautyProjectList from "./BeautyProjectList.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import { useBeautyProjectManagement } from "../composables/useBeautyProjectManagement";
 
 const props = defineProps<{
@@ -24,6 +25,7 @@ const {
   loading,
   submitting,
   errorMessage,
+  errorKind,
   refresh,
   createProject,
   updateProject,
@@ -135,9 +137,13 @@ defineExpose({ refresh, refreshAndSelectInventoryItem });
       @cancel-edit="cancelEdit"
       @quick-add-inventory="emit('open-inventory')"
     />
-    <view v-if="errorMessage" class="project-management__error" role="alert">
-      {{ errorMessage }}
-    </view>
+    <RecoverableErrorNotice
+      v-if="errorMessage"
+      :message="errorMessage"
+      :retryable="errorKind === 'read'"
+      :retrying="loading"
+      @retry="refresh"
+    />
     <view v-if="loading" class="project-management__loading">正在读取本机项目资料</view>
     <BeautyProjectList
       v-else
@@ -184,18 +190,11 @@ defineExpose({ refresh, refreshAndSelectInventoryItem });
   line-height: 1.6;
 }
 
-.project-management__error,
 .project-management__loading {
   margin-top: 22rpx;
   padding: 18rpx 20rpx;
   border-radius: 12rpx;
   font-size: 23rpx;
-}
-
-.project-management__error {
-  border: 2rpx solid #e2b5b5;
-  background: #fff5f4;
-  color: #97423f;
 }
 
 .project-management__loading {

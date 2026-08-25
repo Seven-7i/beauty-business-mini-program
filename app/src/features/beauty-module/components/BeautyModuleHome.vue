@@ -2,6 +2,7 @@
 import type { DeepReadonly } from "vue";
 import type { CustomerV1 } from "@/domain/data-schema";
 import type { BeautyHomeOverview } from "@/services/statistics-service";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
 const props = defineProps<{
   overview?: DeepReadonly<BeautyHomeOverview>;
@@ -15,6 +16,7 @@ defineEmits<{
   (event: "open-projects"): void;
   (event: "open-customers"): void;
   (event: "open-appointments"): void;
+  (event: "retry"): void;
 }>();
 
 function formatCurrency(cents: number): string {
@@ -64,7 +66,12 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
         <button @click="$emit('open-appointments')">查看全部</button>
       </view>
       <view v-if="loading" class="reminder-empty">正在读取本机预约</view>
-      <view v-else-if="errorMessage" class="reminder-empty reminder-empty--error">{{ errorMessage }}</view>
+      <RecoverableErrorNotice
+        v-else-if="errorMessage"
+        :message="errorMessage"
+        retryable
+        @retry="$emit('retry')"
+      />
       <view v-else-if="!overview?.reminders.length" class="reminder-empty">暂无逾期、今天或未来三天的待执行预约</view>
       <button v-for="reminder in overview?.reminders ?? []" :key="reminder.appointment.id" class="reminder-row" @click="$emit('open-appointments')">
         <text class="reminder-row__badge" :class="{ 'reminder-row__badge--overdue': reminder.group === 'overdue' }">{{ reminderLabel(reminder.group) }}</text>
@@ -169,12 +176,11 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
 }
 
 .metric-card__value {
-  overflow: hidden;
   color: #263650;
   font-size: 29rpx;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .metric-card__label {
@@ -222,18 +228,12 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
   text-align: center;
 }
 
-.reminder-empty--error {
-  border-color: #e4bdbc;
-  background: #fff5f4;
-  color: #97423f;
-}
-
 .reminder-row {
   display: flex;
   width: 100%;
   min-height: 104rpx;
   box-sizing: border-box;
-  align-items: center;
+  align-items: flex-start;
   gap: 16rpx;
   margin-bottom: 12rpx;
   padding: 18rpx 20rpx;
@@ -268,15 +268,15 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
   color: #28344a;
   font-size: 24rpx;
   font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .reminder-row__meta {
-  overflow: hidden;
   margin-top: 7rpx;
   color: #788397;
   font-size: 19rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .feature-row {
@@ -334,6 +334,7 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
   color: #263248;
   font-size: 28rpx;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .feature-row__meta,
@@ -342,13 +343,26 @@ function reminderLabel(group: "overdue" | "today" | "next-three-days"): string {
   color: #788397;
   font-size: 21rpx;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .feature-row__arrow {
+  flex: none;
   margin-left: 14rpx;
   color: #6c7789;
   font-size: 46rpx;
   font-weight: 300;
+}
+
+@media (max-width: 360px) {
+  .beauty-home__metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .metric-card--wide {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
 }
 
 .beauty-home__section--later {

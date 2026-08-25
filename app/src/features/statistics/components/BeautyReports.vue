@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import type { DeepReadonly } from "vue";
 import type { BeautyHomeOverview } from "@/services/statistics-service";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
 defineProps<{
   overview?: DeepReadonly<BeautyHomeOverview>;
   loading: boolean;
   errorMessage: string;
+}>();
+
+defineEmits<{
+  (event: "retry"): void;
 }>();
 
 function formatCurrency(cents: number): string {
@@ -21,7 +26,12 @@ function formatCurrency(cents: number): string {
       <text class="reports-panel__description">只按未删除的已完成预约汇总，不记录支出、成本或利润。</text>
     </view>
     <view v-if="loading" class="reports-panel__state">正在读取本机经营数据</view>
-    <view v-else-if="errorMessage" class="reports-panel__state reports-panel__state--error">{{ errorMessage }}</view>
+    <RecoverableErrorNotice
+      v-else-if="errorMessage"
+      :message="errorMessage"
+      retryable
+      @retry="$emit('retry')"
+    />
     <view v-else class="reports-panel__cards">
       <view class="report-card report-card--primary">
         <text class="report-card__label">本月成交金额</text>
@@ -48,14 +58,23 @@ function formatCurrency(cents: number): string {
 .reports-panel__title { margin-top: 10rpx; color: #1a2538; font-size: 42rpx; font-weight: 700; }
 .reports-panel__description { margin-top: 12rpx; color: #737e90; font-size: 22rpx; line-height: 1.6; }
 .reports-panel__state { margin-top: 28rpx; padding: 28rpx; border: 2rpx dashed #d6dce5; border-radius: 16rpx; color: #788395; font-size: 22rpx; text-align: center; }
-.reports-panel__state--error { border-color: #e4bdbc; background: #fff5f4; color: #97423f; }
 .reports-panel__cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 30rpx; }
 .report-card { display: flex; min-width: 0; padding: 28rpx 24rpx; border: 2rpx solid #dfe4eb; border-radius: 20rpx; background: #fff; flex-direction: column; }
 .report-card--primary { grid-column: 1 / -1; background: linear-gradient(135deg, #43536d, #263650); color: #fff; }
 .report-card__label { color: #758092; font-size: 21rpx; }
 .report-card--primary .report-card__label { color: rgba(255, 255, 255, 0.75); }
-.report-card__value { overflow: hidden; margin-top: 13rpx; color: #263650; font-size: 38rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.report-card__value { margin-top: 13rpx; color: #263650; font-size: 38rpx; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .report-card--primary .report-card__value { color: #fff; font-size: 48rpx; }
 .report-card__meta { margin-top: 12rpx; color: rgba(255, 255, 255, 0.7); font-size: 19rpx; }
 .reports-panel__note { margin-top: 22rpx; padding: 22rpx; border-radius: 14rpx; background: #eef2f7; color: #687487; font-size: 20rpx; line-height: 1.6; }
+
+@media (max-width: 360px) {
+  .reports-panel__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .report-card--primary {
+    grid-column: auto;
+  }
+}
 </style>

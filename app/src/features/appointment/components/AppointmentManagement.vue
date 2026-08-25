@@ -17,6 +17,7 @@ import AppointmentCancellationForm from "./AppointmentCancellationForm.vue";
 import AppointmentCompletionForm from "./AppointmentCompletionForm.vue";
 import AppointmentForm from "./AppointmentForm.vue";
 import AppointmentList from "./AppointmentList.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
 const props = defineProps<{ service: AppointmentManagementService }>();
 const {
@@ -30,6 +31,7 @@ const {
   loading,
   submitting,
   errorMessage,
+  errorKind,
   refresh,
   savePendingAppointment,
   cancelAppointment,
@@ -265,7 +267,7 @@ onMounted(refresh);
     <AppointmentForm v-else ref="appointmentForm" :customers="editingCustomers" :projects="editingProjects" :inventory-items="editingInventoryItems" :submitting="submitting" :editing-appointment="editingAppointment" @submit="submit" @cancel-edit="editingAppointment = undefined" />
     <AppointmentCompletionForm v-if="completingAppointment" :appointment="completingAppointment" :inventory-items="activeInventoryItems" :submitting="submitting" @submit="submitCompletion" @cancel="completingAppointment = undefined" />
     <AppointmentCancellationForm v-if="cancellingAppointment" :appointment="cancellingAppointment" :submitting="submitting" @submit="submitCancellation" @cancel="cancellingAppointment = undefined" />
-    <view v-if="errorMessage" class="appointment-management__error" role="alert">{{ errorMessage }}</view>
+    <RecoverableErrorNotice v-if="errorMessage" :message="errorMessage" :retryable="errorKind === 'read'" :retrying="loading" @retry="refresh" />
     <view v-if="loading" class="appointment-management__loading">正在读取本机预约</view>
     <AppointmentList v-else :appointments="appointmentsByStatus" :customers="customers" :disabled="submitting" @edit="openEdit" @complete="openCompletion" @cancel="openCancellation" @restore-cancelled="confirmRestore" @correct-completed="openCorrection" @revert-completed="confirmRevertCompletion" @delete="confirmDelete" />
   </view>
@@ -277,8 +279,7 @@ onMounted(refresh);
 .appointment-management__eyebrow { color: #31549e; font-size: 22rpx; font-weight: 600; }
 .appointment-management__title { margin-top: 12rpx; color: #1a2538; font-size: 42rpx; font-weight: 700; }
 .appointment-management__description { margin-top: 12rpx; color: #707b8f; font-size: 23rpx; line-height: 1.6; }
-.appointment-management__prerequisite, .appointment-management__error, .appointment-management__loading { padding: 20rpx; border-radius: 13rpx; font-size: 22rpx; }
+.appointment-management__prerequisite, .appointment-management__loading { padding: 20rpx; border-radius: 13rpx; font-size: 22rpx; }
 .appointment-management__prerequisite, .appointment-management__loading { background: #eef2f8; color: #68748a; }
-.appointment-management__error { margin-top: 18rpx; border: 2rpx solid #e2b5b5; background: #fff5f4; color: #97423f; }
 .appointment-management__loading { margin-top: 18rpx; text-align: center; }
 </style>

@@ -17,6 +17,7 @@ export function useCustomerManagement(service: CustomerManagementService) {
   const loading = shallowRef(false);
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
+  const errorKind = shallowRef<"" | "read" | "operation">("");
   const customersByName = computed(() =>
     [...customers.value].sort((left, right) => {
       if (left.status !== right.status) {
@@ -38,11 +39,13 @@ export function useCustomerManagement(service: CustomerManagementService) {
   async function refresh(): Promise<void> {
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const data = await service.readData();
       customers.value = data.customers;
       appointments.value = data.appointments;
     } catch {
+      errorKind.value = "read";
       errorMessage.value = "顾客资料读取失败，为避免覆盖原数据，请返回后重试";
     } finally {
       loading.value = false;
@@ -55,11 +58,13 @@ export function useCustomerManagement(service: CustomerManagementService) {
   ): Promise<boolean> {
     submitting.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await operation();
       await refresh();
       return true;
     } catch (error) {
+      errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : fallbackMessage;
       return false;
@@ -70,11 +75,13 @@ export function useCustomerManagement(service: CustomerManagementService) {
 
   return {
     customers: readonly(customers),
+    appointments: readonly(appointments),
     customersByName,
     businessSummaries,
     loading: readonly(loading),
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
     refresh,
     createCustomer: (input: CreateCustomerInput) =>
       runMutation(

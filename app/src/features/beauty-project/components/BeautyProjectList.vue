@@ -112,6 +112,11 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
   justify-content: space-between;
 }
 
+.project-card__top {
+  align-items: flex-start;
+  gap: 16rpx;
+}
+
 .project-list__title {
   color: #1f2a3d;
   font-size: 30rpx;
@@ -131,15 +136,15 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
 
 .project-list__filters input,
 .project-list__status-filter {
-  height: 66rpx;
+  min-height: 66rpx;
   box-sizing: border-box;
-  padding: 0 18rpx;
+  padding: 12rpx 18rpx;
   border: 2rpx solid #dce2ea;
   border-radius: 11rpx;
   background: #ffffff;
   color: #4c5870;
   font-size: 22rpx;
-  line-height: 64rpx;
+  line-height: 1.35;
 }
 
 .project-list__filters input {
@@ -148,7 +153,7 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
 }
 
 .project-list__filters picker {
-  width: 154rpx;
+  width: 170rpx;
 }
 
 .project-list__empty {
@@ -177,9 +182,12 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
 }
 
 .project-card__name {
+  min-width: 0;
+  flex: 1;
   color: #263248;
   font-size: 27rpx;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .project-card__name-line {
@@ -187,9 +195,12 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
   min-width: 0;
   align-items: center;
   gap: 10rpx;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
 .project-card__status {
+  flex: none;
   padding: 3rpx 8rpx;
   border-radius: 6rpx;
   background: #eceff4;
@@ -198,9 +209,13 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
 }
 
 .project-card__price {
+  max-width: 260rpx;
+  flex: none;
   color: #244f9e;
   font-size: 27rpx;
   font-weight: 700;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .project-card__duration,
@@ -208,23 +223,28 @@ function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
   margin-top: 9rpx;
   color: #68748a;
   font-size: 22rpx;
+  overflow-wrap: anywhere;
 }
 
 .project-card__actions {
   display: flex;
-  gap: 16rpx;
+  gap: 10rpx;
   margin-top: 18rpx;
+  flex-wrap: wrap;
 }
 
 .project-card__actions button {
-  width: 112rpx;
-  height: 54rpx;
+  width: auto;
+  min-width: 118rpx;
+  min-height: 68rpx;
+  flex: 1;
+  padding: 12rpx 16rpx;
   border: 2rpx solid #bac7de;
   border-radius: 10rpx;
   background: #f5f7fb;
   color: #3f5f99;
   font-size: 21rpx;
-  line-height: 52rpx;
+  line-height: 1.3;
 }
 
 .project-card__actions .project-card__delete {

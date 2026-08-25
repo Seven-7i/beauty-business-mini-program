@@ -135,15 +135,15 @@ function selectStatus(event: { detail: { value: string } }): void {
 
 .item-list__filters input,
 .item-list__status-filter {
-  height: 66rpx;
+  min-height: 66rpx;
   box-sizing: border-box;
-  padding: 0 18rpx;
+  padding: 12rpx 18rpx;
   border: 2rpx solid #dce2ea;
   border-radius: 11rpx;
   background: #ffffff;
   color: #4c5870;
   font-size: 22rpx;
-  line-height: 64rpx;
+  line-height: 1.35;
 }
 
 .item-list__filters input {
@@ -152,7 +152,7 @@ function selectStatus(event: { detail: { value: string } }): void {
 }
 
 .item-list__filters picker {
-  width: 154rpx;
+  width: 170rpx;
 }
 
 .item-list__empty {
@@ -184,6 +184,8 @@ function selectStatus(event: { detail: { value: string } }): void {
 }
 
 .item-card {
+  align-items: flex-start;
+  flex-wrap: wrap;
   min-height: 112rpx;
   margin-bottom: 16rpx;
   padding: 22rpx 20rpx 22rpx 24rpx;
@@ -200,18 +202,19 @@ function selectStatus(event: { detail: { value: string } }): void {
 }
 
 .item-card__name {
-  overflow: hidden;
+  min-width: 0;
+  flex: 1;
   color: #263248;
   font-size: 27rpx;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .item-card__name-line {
   display: flex;
   min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10rpx;
 }
 
@@ -225,24 +228,26 @@ function selectStatus(event: { detail: { value: string } }): void {
 }
 
 .item-card__note {
-  overflow: hidden;
   margin-top: 8rpx;
   color: #858d9c;
   font-size: 21rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .item-card__quantity {
   display: flex;
   align-items: baseline;
-  margin: 0 22rpx;
+  max-width: 220rpx;
+  margin-left: 18rpx;
+  text-align: right;
 }
 
 .item-card__number {
   color: #244f9e;
   font-size: 33rpx;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .item-card__unit {
@@ -253,23 +258,27 @@ function selectStatus(event: { detail: { value: string } }): void {
 
 .item-card__actions {
   display: flex;
-  width: 108rpx;
-  flex-direction: column;
-  gap: 8rpx;
+  width: 100%;
+  flex-basis: 100%;
+  gap: 10rpx;
+  margin-top: 18rpx;
+  flex-wrap: wrap;
 }
 
 .item-card__action,
 .item-card__status-action,
 .item-card__delete-action {
-  width: 108rpx;
-  height: 48rpx;
-  padding: 0;
+  width: auto;
+  min-width: 116rpx;
+  min-height: 68rpx;
+  flex: 1;
+  padding: 12rpx 14rpx;
   border: 2rpx solid #9eb1d8;
   border-radius: 12rpx;
   background: #f5f7fc;
   color: #31549e;
   font-size: 23rpx;
-  line-height: 46rpx;
+  line-height: 1.3;
 }
 
 .item-card__delete-action {

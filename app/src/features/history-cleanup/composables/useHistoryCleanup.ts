@@ -19,17 +19,20 @@ export function useHistoryCleanup(service: HistoryCleanupService) {
   const loading = shallowRef(false);
   const deletingId = shallowRef("");
   const errorMessage = shallowRef("");
+  const errorKind = shallowRef<"" | "read" | "operation">("");
   const deleting = computed(() => deletingId.value !== "");
   const hasMore = computed(() => records.value.length < total.value);
 
   async function refresh(): Promise<void> {
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const page = await service.readHistory(cutoffDate.value);
       records.value = page.records;
       total.value = page.total;
     } catch (error) {
+      errorKind.value = "read";
       errorMessage.value =
         error instanceof Error ? error.message : "预约历史读取失败，请稍后重试";
     } finally {
@@ -43,6 +46,7 @@ export function useHistoryCleanup(service: HistoryCleanupService) {
     }
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const page = await service.readHistory(
         cutoffDate.value,
@@ -51,6 +55,7 @@ export function useHistoryCleanup(service: HistoryCleanupService) {
       records.value = [...records.value, ...page.records];
       total.value = page.total;
     } catch (error) {
+      errorKind.value = "read";
       errorMessage.value =
         error instanceof Error ? error.message : "更多预约历史读取失败，请稍后重试";
     } finally {
@@ -63,11 +68,13 @@ export function useHistoryCleanup(service: HistoryCleanupService) {
   ): Promise<boolean> {
     deletingId.value = record.appointmentId;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await service.deleteHistoryAppointment(record);
       await refresh();
       return true;
     } catch (error) {
+      errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : "预约历史删除失败，请稍后重试";
       return false;
@@ -85,6 +92,7 @@ export function useHistoryCleanup(service: HistoryCleanupService) {
     deleting,
     hasMore,
     errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
     refresh,
     loadMore,
     deleteRecord,

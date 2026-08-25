@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef, type DeepReadonly } from "vue";
+import { computed, onMounted, ref, shallowRef, type DeepReadonly } from "vue";
 import type { CustomerV1 } from "@/domain/data-schema";
 import type {
   CreateCustomerInput,
   CustomerManagementService,
 } from "@/services/customer-management-service";
 import { useCustomerManagement } from "../composables/useCustomerManagement";
+import { deriveCustomerAppointmentHistory } from "../customer-appointment-history";
 import CustomerForm from "./CustomerForm.vue";
 import CustomerList from "./CustomerList.vue";
+import CustomerDetail from "./CustomerDetail.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
 const props = defineProps<{ service: CustomerManagementService }>();
 const {
+  appointments,
   customersByName,
   businessSummaries,
   loading,
   submitting,
   errorMessage,
+  errorKind,
   refresh,
   createCustomer,
   updateCustomer,
@@ -23,7 +28,29 @@ const {
   deleteCustomer,
 } = useCustomerManagement(props.service);
 const selectedCustomer = shallowRef<DeepReadonly<CustomerV1>>();
+const detailCustomerId = shallowRef("");
 const customerForm = ref<InstanceType<typeof CustomerForm> | null>(null);
+const detailCustomer = computed(() =>
+  customersByName.value.find(
+    (customer) => customer.id === detailCustomerId.value,
+  ),
+);
+const detailAppointments = computed(() =>
+  detailCustomer.value
+    ? deriveCustomerAppointmentHistory(
+        detailCustomer.value.id,
+        appointments.value,
+      )
+    : [],
+);
+const detailBusinessSummary = computed(() =>
+  detailCustomer.value
+    ? (businessSummaries.value[detailCustomer.value.id] ?? {
+        completedCount: 0,
+        transactionAmountCents: 0,
+      })
+    : { completedCount: 0, transactionAmountCents: 0 },
+);
 
 async function handleSubmit(input: CreateCustomerInput): Promise<void> {
   const saved = selectedCustomer.value
@@ -37,8 +64,17 @@ async function handleSubmit(input: CreateCustomerInput): Promise<void> {
 }
 
 function editCustomer(customer: DeepReadonly<CustomerV1>): void {
+  detailCustomerId.value = "";
   selectedCustomer.value = customer;
   uni.pageScrollTo({ scrollTop: 0, duration: 250 });
+}
+
+function openCustomerDetail(customer: DeepReadonly<CustomerV1>): void {
+  detailCustomerId.value = customer.id;
+}
+
+function closeCustomerDetail(): void {
+  detailCustomerId.value = "";
 }
 
 function cancelEdit(): void {
@@ -81,6 +117,7 @@ function confirmDelete(customer: DeepReadonly<CustomerV1>): void {
       if (result.confirm) {
         void deleteCustomer(customer.id).then((deleted) => {
           if (deleted) {
+            closeCustomerDetail();
             cancelEdit();
             uni.showToast({ title: "顾客已删除", icon: "none" });
           }
@@ -101,9 +138,17 @@ onMounted(refresh);
       <text class="customer-management__description">昵称和手机号在停用后仍保持唯一；服务地址不设置默认项。</text>
     </view>
     <CustomerForm ref="customerForm" :submitting="submitting" :editing-customer="selectedCustomer" @submit="handleSubmit" @cancel-edit="cancelEdit" />
-    <view v-if="errorMessage" class="customer-management__error" role="alert">{{ errorMessage }}</view>
+    <RecoverableErrorNotice v-if="errorMessage" :message="errorMessage" :retryable="errorKind === 'read'" :retrying="loading" @retry="refresh" />
     <view v-if="loading" class="customer-management__loading">正在读取本机顾客资料</view>
-    <CustomerList v-else :customers="customersByName" :business-summaries="businessSummaries" :disabled="submitting" @edit="editCustomer" @toggle-status="toggleStatus" @delete="confirmDelete" />
+    <CustomerDetail
+      v-else-if="detailCustomer"
+      :customer="detailCustomer"
+      :appointments="detailAppointments"
+      :business-summary="detailBusinessSummary"
+      @close="closeCustomerDetail"
+      @edit="editCustomer"
+    />
+    <CustomerList v-else :customers="customersByName" :business-summaries="businessSummaries" :disabled="submitting" @view="openCustomerDetail" @edit="editCustomer" @toggle-status="toggleStatus" @delete="confirmDelete" />
   </view>
 </template>
 
@@ -113,7 +158,6 @@ onMounted(refresh);
 .customer-management__eyebrow { color: #31549e; font-size: 22rpx; font-weight: 600; }
 .customer-management__title { margin-top: 12rpx; color: #1a2538; font-size: 42rpx; font-weight: 700; }
 .customer-management__description { margin-top: 12rpx; color: #707b8f; font-size: 23rpx; line-height: 1.6; }
-.customer-management__error, .customer-management__loading { margin-top: 22rpx; padding: 18rpx 20rpx; border-radius: 12rpx; font-size: 23rpx; }
-.customer-management__error { border: 2rpx solid #e2b5b5; background: #fff5f4; color: #97423f; }
+.customer-management__loading { margin-top: 22rpx; padding: 18rpx 20rpx; border-radius: 12rpx; font-size: 23rpx; }
 .customer-management__loading { background: #eef2f8; color: #68748a; text-align: center; }
 </style>

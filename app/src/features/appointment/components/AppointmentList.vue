@@ -59,7 +59,9 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
 <template>
   <view class="appointment-list">
     <view class="appointment-list__heading"><text>预约记录</text><text>{{ appointments.length }} 条</text></view>
-    <view v-if="!appointments.length" class="appointment-list__empty">还没有预约记录。</view>
+    <view v-if="!appointments.length" class="appointment-list__empty" role="status">
+      还没有预约记录，使用上方表单创建第一条预约。
+    </view>
     <view v-for="appointment in appointments" :key="appointment.id" class="appointment-card">
       <view class="appointment-card__heading">
         <view class="appointment-card__identity">
@@ -100,20 +102,21 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
 .appointment-list__heading text:last-child { color: #7a8597; font-size: 20rpx; font-weight: 400; }
 .appointment-list__empty { margin-top: 16rpx; padding: 30rpx; border: 2rpx dashed #d5dbe4; border-radius: 14rpx; color: #7c8798; font-size: 22rpx; text-align: center; }
 .appointment-card { display: flex; margin-top: 16rpx; padding: 24rpx; border: 2rpx solid #e0e5ec; border-radius: 17rpx; background: #fff; flex-direction: column; }
-.appointment-card__heading { gap: 16rpx; }
-.appointment-card__identity { min-width: 0; gap: 10rpx; }
-.appointment-card__customer { color: #243047; font-size: 27rpx; font-weight: 700; }
+.appointment-card__heading { align-items: flex-start; gap: 16rpx; flex-wrap: wrap; }
+.appointment-card__identity { min-width: 0; flex: 1; gap: 10rpx; flex-wrap: wrap; }
+.appointment-card__customer { min-width: 0; color: #243047; font-size: 27rpx; font-weight: 700; overflow-wrap: anywhere; }
 .appointment-card__status { flex: none; padding: 5rpx 10rpx; border-radius: 9rpx; font-size: 18rpx; }
 .appointment-card__status--pending { background: #e8eefb; color: #31549e; }
 .appointment-card__status--overdue { background: #fae9e7; color: #984943; }
 .appointment-card__status--completed { background: #e5f2ea; color: #34704d; }
 .appointment-card__status--cancelled { background: #eceef2; color: #737d8d; }
 .appointment-card__time { flex: none; color: #31549e; font-size: 22rpx; font-weight: 600; }
-.appointment-card__projects { margin-top: 14rpx; color: #46536a; font-size: 23rpx; }
+.appointment-card__projects { margin-top: 14rpx; color: #46536a; font-size: 23rpx; overflow-wrap: anywhere; }
 .appointment-card__meta, .appointment-card__address, .appointment-card__result { margin-top: 8rpx; color: #788397; font-size: 21rpx; line-height: 1.5; }
+.appointment-card__meta, .appointment-card__address, .appointment-card__result { overflow-wrap: anywhere; }
 .appointment-card__result { color: #4f607a; }
 .appointment-card__actions { justify-content: flex-end; gap: 10rpx; margin-top: 18rpx; flex-wrap: wrap; }
-.appointment-card__actions button { height: 68rpx; padding: 0 24rpx; border-radius: 11rpx; background: #e8eefb; color: #31549e; font-size: 21rpx; line-height: 68rpx; }
+.appointment-card__actions button { min-width: 126rpx; min-height: 68rpx; flex: 1; padding: 12rpx 20rpx; border-radius: 11rpx; background: #e8eefb; color: #31549e; font-size: 21rpx; line-height: 1.35; }
 .appointment-card__actions .appointment-card__cancel { background: #fff0ef; color: #9a4a47; }
 .appointment-card__actions .appointment-card__delete { border: 2rpx solid #e5c8c5; background: #fff; color: #9a4a47; }
 </style>

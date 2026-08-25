@@ -38,6 +38,7 @@ export function useInventoryManagement(
   const loading = shallowRef(false);
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
+  const errorKind = shallowRef<"" | "read" | "operation">("");
   const activeItems = computed(() =>
     items.value.filter((item) => item.status === "active"),
   );
@@ -63,12 +64,14 @@ export function useInventoryManagement(
   async function refresh(): Promise<void> {
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const data = await options.service.readData();
       items.value = data.inventoryItems;
       movements.value = data.inventoryMovements;
       appointments.value = data.appointments;
     } catch {
+      errorKind.value = "read";
       errorMessage.value = "库存读取失败，为避免覆盖原数据，请返回后重试";
     } finally {
       loading.value = false;
@@ -78,11 +81,13 @@ export function useInventoryManagement(
   async function runMutation(operation: () => Promise<unknown>): Promise<boolean> {
     submitting.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await operation();
       await refresh();
       return true;
     } catch (error) {
+      errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : "库存保存失败，请稍后重试";
       return false;
@@ -142,6 +147,7 @@ export function useInventoryManagement(
     loading: readonly(loading),
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
     refresh,
     createItem,
     adjustInventory,

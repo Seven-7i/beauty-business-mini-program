@@ -15,6 +15,7 @@ export function useBeautyProjectManagement(
   const loading = shallowRef(false);
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
+  const errorKind = shallowRef<"" | "read" | "operation">("");
   const activeInventoryItems = computed(() =>
     inventoryItems.value.filter((item) => item.status === "active"),
   );
@@ -22,12 +23,14 @@ export function useBeautyProjectManagement(
   async function refresh(): Promise<boolean> {
     loading.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       const data = await service.readData();
       projects.value = data.projects;
       inventoryItems.value = data.inventoryItems;
       return true;
     } catch {
+      errorKind.value = "read";
       errorMessage.value = "项目资料读取失败，为避免覆盖原数据，请返回后重试";
       return false;
     } finally {
@@ -41,11 +44,13 @@ export function useBeautyProjectManagement(
   ): Promise<boolean> {
     submitting.value = true;
     errorMessage.value = "";
+    errorKind.value = "";
     try {
       await operation();
       await refresh();
       return true;
     } catch (error) {
+      errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : fallbackMessage;
       return false;
@@ -92,6 +97,7 @@ export function useBeautyProjectManagement(
     loading: readonly(loading),
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
     refresh,
     createProject,
     updateProject,
