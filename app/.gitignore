@@ -12,6 +12,10 @@ node_modules
 dist
 *.local
 
+# Local WeChat preview and acceptance artifacts
+latest-preview-*.png
+simulator-acceptance.png
+
 # Editor directories and files
 .idea
 *.suo
