@@ -104,6 +104,15 @@ const canPrepare = computed(() =>
     </view>
 
     <button
+      v-else-if="props.state.status === 'finalizing-sent'"
+      class="data-section__button data-section__button--primary"
+      :disabled="props.busy"
+      @click="emit('confirm-sent')"
+    >
+      继续完成导出记录
+    </button>
+
+    <button
       v-else
       class="data-section__button data-section__button--primary"
       disabled

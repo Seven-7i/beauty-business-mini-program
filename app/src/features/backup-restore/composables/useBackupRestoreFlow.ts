@@ -12,6 +12,7 @@ import type {
   PreparedBackupExport,
   SelectedBackupRestore,
 } from "@/services/backup-restore-service";
+import { PendingExportSentDecisionCommittedError } from "@/services/pending-export-confirmation-service";
 import type { BackupScope } from "@/services/portable-backup-envelope";
 import type {
   BackupExportViewState,
@@ -179,35 +180,46 @@ export function useBackupRestoreFlow(options: UseBackupRestoreFlowOptions) {
 
     exportState.status = "sharing";
     exportState.detail = "正在等待微信转发面板返回…";
+    let tracking: Promise<
+      | { persisted: true }
+      | { persisted: false; error: unknown }
+    > | undefined;
 
     try {
       // 不要在此调用前增加 await，必须在用户 TAP 调用栈内立即进入微信 API。
       const sharing = service.sharePreparedExport(prepared);
+      tracking = service.markExportAwaitingConfirmation(prepared).then(
+        () => ({ persisted: true as const }),
+        (error: unknown) => ({ persisted: false as const, error }),
+      );
+      // 即使待确认状态落盘失败，也必须先等待微信分享结束，不能提前删除正在使用的文件。
       await sharing;
+      const trackingResult = await tracking;
       if (scopeActive) {
         exportState.status = "awaiting-confirmation";
-        exportState.detail = "微信无法判断是否实际发送，请按聊天中的结果确认";
+        exportState.detail = trackingResult.persisted
+          ? "微信无法判断是否实际发送，请按聊天中的结果确认"
+          : `微信无法判断是否实际发送，请现在确认；待确认状态保存失败，下次启动无法自动提醒：${getErrorMessage(trackingResult.error)}`;
       }
     } catch (error) {
       if (scopeActive) {
-        const cancelled =
-          error instanceof WechatFileOperationError && error.cancelled;
-        exportState.status = "cleaning";
-        const cleanupError = await cleanupPreparedExport(prepared);
-        exportState.status = cancelled ? "cancelled" : "failed";
-        exportState.detail = cleanupError
-          ? `${getErrorMessage(error)}；临时文件将在下次进入时继续清理：${cleanupError}`
-          : getErrorMessage(error);
-        if (restoreState.currentDataExportStatus === "in-progress") {
-          restoreState.currentDataExportStatus = "idle";
-        }
+        const trackingResult = await tracking;
+        exportState.status = "awaiting-confirmation";
+        exportState.detail = trackingResult?.persisted
+          ? `微信返回“${getErrorMessage(error)}”，仍请按聊天中的实际结果确认`
+          : `微信返回“${getErrorMessage(error)}”，请现在确认实际结果；待确认状态保存失败，下次启动无法自动提醒`;
       }
     }
   }
 
   async function confirmExportSent(): Promise<void> {
     const prepared = preparedExport.value;
-    if (!prepared || exportState.status !== "awaiting-confirmation") {
+    if (
+      !prepared ||
+      !["awaiting-confirmation", "finalizing-sent"].includes(
+        exportState.status,
+      )
+    ) {
       return;
     }
 
@@ -237,9 +249,14 @@ export function useBackupRestoreFlow(options: UseBackupRestoreFlowOptions) {
         : `${resultLabel}，临时文件已清理`;
     } catch (error) {
       if (scopeActive) {
-        // 文件可能已经发送，保留确认入口以便只重试元数据记录。
-        exportState.status = "awaiting-confirmation";
-        exportState.detail = `文件可能已发送，但记录导出时间失败，请重试：${getErrorMessage(error)}`;
+        if (error instanceof PendingExportSentDecisionCommittedError) {
+          exportState.status = "finalizing-sent";
+          exportState.detail = `已确定文件发送成功，不能改为未发送；请重试完成导出记录：${getErrorMessage(error)}`;
+        } else {
+          // “已发送”决定尚未落盘，仍保留完整确认入口。
+          exportState.status = "awaiting-confirmation";
+          exportState.detail = `文件可能已发送，但确认结果保存失败，请重试：${getErrorMessage(error)}`;
+        }
       }
     }
   }
@@ -250,9 +267,19 @@ export function useBackupRestoreFlow(options: UseBackupRestoreFlowOptions) {
     }
     exportState.status = "cleaning";
     const prepared = preparedExport.value;
-    const cleanupError = prepared
-      ? await cleanupPreparedExport(prepared)
-      : undefined;
+    if (!prepared) {
+      exportState.status = "failed";
+      exportState.detail = "找不到本次导出记录，请下次启动后继续确认";
+      return;
+    }
+    try {
+      await service.discardPendingExportConfirmation(prepared);
+    } catch (error) {
+      exportState.status = "awaiting-confirmation";
+      exportState.detail = `未发送结果保存失败，请重试：${getErrorMessage(error)}`;
+      return;
+    }
+    const cleanupError = await cleanupPreparedExport(prepared);
     exportState.status = "cancelled";
     exportState.detail = cleanupError
       ? `已取消，不会更新最近导出时间；临时文件将在下次进入时继续清理：${cleanupError}`

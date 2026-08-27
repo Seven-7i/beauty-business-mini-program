@@ -71,4 +71,69 @@ describe("阶段 4 界面韧性契约", () => {
     }
     expect(inventory).not.toContain(".item-card__name {\n  overflow: hidden");
   });
+
+  it("线条图标使用统一绝对居中画布且图标底座不产生文本行盒偏移", () => {
+    const icon = readSource("./shared/components/AppIcon.vue");
+    const myMenu = readSource("./my-center/components/MyCenterMenu.vue");
+    const storage = readSource("./storage-capacity/components/StorageCapacityCard.vue");
+
+    expect(icon).toContain("app-icon__canvas");
+    expect(icon).toMatch(
+      /\.app-icon__canvas\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
+    );
+    expect(icon).toMatch(/\.app-icon\s*\{[^}]*display:\s*block;[^}]*line-height:\s*0;/s);
+    expect(myMenu).toMatch(/\.my-menu__icon\s*\{[^}]*line-height:\s*0;/s);
+    expect(storage).toMatch(/\.storage-card__icon\s*\{[^}]*line-height:\s*0;/s);
+  });
+
+  it("系统备份恢复页沿用暖石磨砂层次且不把视觉稿图片带入运行时", () => {
+    const panel = readSource("./backup-restore/components/BackupRestorePanel.vue");
+    const overview = readSource("./backup-restore/components/BackupExportOverview.vue");
+    const exportSection = readSource(
+      "./backup-restore/components/SystemBackupExportSection.vue",
+    );
+    const restoreSection = readSource(
+      "./backup-restore/components/SystemBackupRestoreSection.vue",
+    );
+    const scopeActions = readSource(
+      "./backup-restore/components/BackupScopeActions.vue",
+    );
+    const sources = [panel, overview, exportSection, restoreSection, scopeActions];
+
+    expect(panel).toContain("守住本机数据");
+    expect(panel).toContain("备份文件未加密");
+    expect(panel).toMatch(/\.system-panel\s*\{[^}]*background:\s*#f3f1ec;/s);
+    expect(overview).toContain("最近完整系统导出");
+    expect(exportSection).toContain("导出备份");
+    expect(scopeActions).toContain("完整系统备份");
+    expect(scopeActions).toContain("选择模块导出");
+    expect(scopeActions).not.toContain("立即导出");
+    expect(restoreSection).toContain("从备份文件恢复");
+    expect(sources.some((source) => source.includes("backdrop-filter: blur"))).toBe(true);
+
+    for (const source of sources) {
+      expect(source).not.toContain("<image");
+      expect(source).not.toContain("data:image/");
+    }
+  });
+
+  it("未确认导出由全局启动门禁优先处理，分享页返回后立即强确认", () => {
+    const app = readSource("../App.vue");
+    const index = readSource("../pages/index/index.vue");
+    const systemBackup = readSource("../pages/backup-restore/index.vue");
+    const beauty = readSource("../pages/beauty/index.vue");
+
+    expect(app).toContain("上次导出尚未确认");
+    expect(app).toContain("setStartupExportConfirmationGate");
+    expect(app).toContain("instanceof PendingExportSentDecisionCommittedError");
+    expect(app).toContain('result === "sent-committed"');
+    expect(index).toContain("waitForStartupExportConfirmation");
+    expect(index).toMatch(
+      /await waitForStartupExportConfirmation\(\);[\s\S]*handledPending[\s\S]*return;[\s\S]*checkStorageCapacity\(\)/,
+    );
+    for (const source of [systemBackup, beauty]) {
+      expect(source).toContain("备份文件是否已发送？");
+      expect(source).toContain("shareAndConfirmExport");
+    }
+  });
 });

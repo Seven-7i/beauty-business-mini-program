@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import AppIcon from "@/features/shared/components/AppIcon.vue";
 import BackupExportSection from "./BackupExportSection.vue";
+import BackupExportOverview from "./BackupExportOverview.vue";
 import BackupRestoreSection from "./BackupRestoreSection.vue";
+import SystemBackupExportSection from "./SystemBackupExportSection.vue";
+import SystemBackupRestoreSection from "./SystemBackupRestoreSection.vue";
 import type {
   BackupExportViewState,
   BackupRestoreViewState,
@@ -20,6 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: "prepare-export"): void;
+  (event: "request-export-scope", scope: "system" | "beauty"): void;
   (event: "share-export"): void;
   (event: "confirm-export-sent"): void;
   (event: "confirm-export-cancelled"): void;
@@ -43,20 +48,56 @@ const canChangeScope = computed(() =>
 </script>
 
 <template>
-  <view class="backup-panel">
+  <view v-if="props.context === 'system'" class="system-panel">
+    <view class="system-panel__atmosphere system-panel__atmosphere--rose" aria-hidden="true" />
+    <view class="system-panel__atmosphere system-panel__atmosphere--sand" aria-hidden="true" />
+    <view class="system-panel__atmosphere system-panel__atmosphere--slate" aria-hidden="true" />
+
+    <view class="system-panel__content">
+      <view class="system-panel__intro">
+        <text class="system-panel__title">守住本机数据</text>
+        <text class="system-panel__description">定期导出，换机或误删时可以恢复</text>
+      </view>
+
+      <BackupExportOverview :last-exported-at="props.lastExportedAt" />
+
+      <SystemBackupExportSection
+        :state="props.exportState"
+        :last-export-file-name="props.lastExportFileName"
+        :busy="props.busy"
+        :export-scope="props.exportScope"
+        @request="emit('request-export-scope', $event)"
+        @share="emit('share-export')"
+        @confirm-sent="emit('confirm-export-sent')"
+        @confirm-cancelled="emit('confirm-export-cancelled')"
+      />
+
+      <SystemBackupRestoreSection
+        :state="props.restoreState"
+        :busy="props.busy"
+        @select="emit('select-restore')"
+        @prepare-current-export="emit('prepare-current-export')"
+        @proceed="emit('proceed')"
+        @return-home="emit('return-home')"
+      />
+
+      <view class="system-panel__privacy">
+        <view class="system-panel__privacy-icon">
+          <AppIcon name="shield" :size="24" color="#6D685B" />
+        </view>
+        <text class="system-panel__privacy-copy">
+          备份文件未加密，可能包含顾客资料，请妥善保管。不同设备不会自动同步。
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <view v-else class="backup-panel">
     <view class="backup-panel__intro">
-      <text class="backup-panel__eyebrow">
-        {{ props.context === "beauty" ? "美容模块" : "系统级数据保护" }}
-      </text>
-      <text class="backup-panel__title">
-        {{ props.context === "beauty" ? "美容数据" : "备份与恢复" }}
-      </text>
+      <text class="backup-panel__eyebrow">美容模块</text>
+      <text class="backup-panel__title">美容数据</text>
       <text class="backup-panel__description">
-        {{
-          props.context === "beauty"
-            ? "这里只导出或恢复美容模块；其他模块和系统设置不会被覆盖。"
-            : "可以完整备份系统，也可以只选择需要保护的业务模块。"
-        }}
+        这里只导出或恢复美容模块；其他模块和系统设置不会被覆盖。
       </text>
     </view>
 
@@ -97,7 +138,7 @@ const canChangeScope = computed(() =>
       :last-export-file-name="props.lastExportFileName"
       :busy="props.busy"
       :scope-label="scopeLabel"
-      :show-last-system-export="props.context === 'system'"
+      :show-last-system-export="false"
       @prepare="emit('prepare-export')"
       @share="emit('share-export')"
       @confirm-sent="emit('confirm-export-sent')"
@@ -116,6 +157,106 @@ const canChangeScope = computed(() =>
 </template>
 
 <style scoped>
+.system-panel {
+  position: relative;
+  min-height: calc(100vh - 88rpx);
+  overflow: hidden;
+  background: #f3f1ec;
+  color: #242620;
+}
+
+.system-panel__atmosphere {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(96rpx);
+  pointer-events: none;
+}
+
+.system-panel__atmosphere--rose {
+  top: 90rpx;
+  left: -210rpx;
+  width: 520rpx;
+  height: 520rpx;
+  background: rgba(183, 131, 140, 0.22);
+}
+
+.system-panel__atmosphere--sand {
+  top: 760rpx;
+  right: -220rpx;
+  width: 560rpx;
+  height: 560rpx;
+  background: rgba(188, 158, 121, 0.25);
+}
+
+.system-panel__atmosphere--slate {
+  bottom: 100rpx;
+  left: 80rpx;
+  width: 420rpx;
+  height: 420rpx;
+  background: rgba(61, 74, 93, 0.09);
+}
+
+.system-panel__content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 54rpx 46rpx calc(60rpx + env(safe-area-inset-bottom));
+}
+
+.system-panel__intro {
+  display: flex;
+  flex-direction: column;
+}
+
+.system-panel__title {
+  color: #242620;
+  font-size: 50rpx;
+  font-weight: 660;
+  letter-spacing: -1rpx;
+  line-height: 1.15;
+}
+
+.system-panel__description {
+  margin-top: 20rpx;
+  color: #6f716c;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.system-panel__privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  margin-top: 36rpx;
+  padding: 24rpx 26rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 28rpx;
+  background: rgba(251, 250, 247, 0.5);
+  box-shadow:
+    0 18rpx 42rpx rgba(75, 63, 51, 0.08),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(26rpx) saturate(1.1);
+  backdrop-filter: blur(26rpx) saturate(1.1);
+}
+
+.system-panel__privacy-icon {
+  display: flex;
+  width: 52rpx;
+  height: 52rpx;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.system-panel__privacy-copy {
+  flex: 1;
+  color: #74736d;
+  font-size: 21rpx;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .backup-panel {
   display: flex;
   min-height: calc(100vh - 88rpx);
@@ -226,6 +367,17 @@ const canChangeScope = computed(() =>
   border-color: #3159b5;
   background: #edf3ff;
   color: #294d96;
+}
+
+@media (max-width: 360px) {
+  .system-panel__content {
+    padding-right: 36rpx;
+    padding-left: 36rpx;
+  }
+
+  .system-panel__title {
+    font-size: 46rpx;
+  }
 }
 
 </style>

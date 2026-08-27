@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, shallowRef } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
 import DataProtectionErrorState from "@/features/launch/components/DataProtectionErrorState.vue";
@@ -25,6 +25,7 @@ import { createModuleAuthorizationRepository } from "@/repositories/module-autho
 import { createBackupReminderService } from "@/services/backup-reminder-service";
 import { createMyCenterService } from "@/services/my-center-service";
 import { createStorageCapacityService } from "@/services/storage-capacity-service";
+import { waitForStartupExportConfirmation } from "@/services/startup-export-confirmation-gate";
 import { formatLocalDateTime } from "@/utils/date-time-display";
 
 const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
@@ -60,10 +61,10 @@ const { checkStorageCapacity } = useStorageCapacityReminder({
   openHistoryCleanup: () => { void requestHistoryCleanup(); },
 });
 const unsubscribeStorageCapacity = subscribeStorageCapacityChanged(() => {
-  void checkStorageCapacity();
+  void checkProtectionReminders();
 });
-const activeTab = ref<AppShellTab>("workbench");
-const managingModules = ref(false);
+const activeTab = shallowRef<AppShellTab>("workbench");
+const managingModules = shallowRef(false);
 const myCenterService = createMyCenterService({
   repository: applicationData,
   storage,
@@ -92,11 +93,23 @@ async function enterAuthorizedWorkbench(): Promise<void> {
   await checkProtectionReminders();
 }
 
-async function checkProtectionReminders(): Promise<void> {
-  if (await checkStorageCapacity()) {
-    return;
+let protectionReminderCheck: Promise<void> | undefined;
+
+function checkProtectionReminders(): Promise<void> {
+  if (!protectionReminderCheck) {
+    protectionReminderCheck = (async () => {
+      const startupConfirmation = await waitForStartupExportConfirmation();
+      if (startupConfirmation.handledPending) {
+        return;
+      }
+      if (!(await checkStorageCapacity())) {
+        await checkBackupReminder();
+      }
+    })().finally(() => {
+      protectionReminderCheck = undefined;
+    });
   }
-  await checkBackupReminder();
+  return protectionReminderCheck;
 }
 
 async function checkWorkbenchReminder(): Promise<void> {
@@ -229,8 +242,6 @@ onShow(checkWorkbenchReminder);
         <BeautyWorkbench
           v-if="activeTab === 'workbench'"
           @open-module="openBeautyModule"
-          @manage-modules="openModuleManagement"
-          @backup-restore="openBackupRestore"
         />
         <MyCenter
           v-else

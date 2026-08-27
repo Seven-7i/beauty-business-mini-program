@@ -7,6 +7,7 @@ export type BackupExportStatus =
   | "ready"
   | "sharing"
   | "awaiting-confirmation"
+  | "finalizing-sent"
   | "recording"
   | "cleaning"
   | "completed"

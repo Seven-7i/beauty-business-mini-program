@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UpCodeInput from "uview-plus/components/u-code-input/u-code-input.vue";
+import ModuleCodeInput from "@/features/shared/components/ModuleCodeInput.vue";
 
 const props = defineProps<{
   submitting: boolean;
@@ -27,16 +27,11 @@ const emit = defineEmits<{
     <view class="activation-form__field">
       <text class="activation-form__label">模块码</text>
       <view class="activation-form__code-input">
-        <UpCodeInput
+        <ModuleCodeInput
           v-model="moduleCode"
           :maxlength="6"
-          :size="44"
-          :space="8"
-          :font-size="22"
-          mode="box"
-          bold
-          color="#172033"
-          border-color="#9aa7bd"
+          :disabled="props.submitting"
+          aria-label="请输入六位模块授权码"
         />
       </view>
       <text v-if="props.errorMessage" class="activation-form__error">

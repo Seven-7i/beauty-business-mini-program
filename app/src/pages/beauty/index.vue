@@ -18,13 +18,19 @@ import {
 import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/backup-file-adapter";
 import { createApplicationDataRepository } from "@/repositories/application-data-repository";
 import { createBackupRestoreService } from "@/services/backup-restore-service";
+import { createPendingExportConfirmationService } from "@/services/pending-export-confirmation-service";
 
 // 页面作为组合根注入本机数据能力，首页组件只接收派生展示状态。
 const files = createDefaultWechatBackupFileAdapter();
+const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
 const repository = createApplicationDataRepository({
-  storage: createUniStorageAdapter(uni as unknown as UniStorageRuntime),
+  storage,
   rollbackFiles: files,
   appVersion: APP_VERSION,
+});
+const exportConfirmations = createPendingExportConfirmationService({
+  storage,
+  repository,
 });
 const { overview, customers, loading, errorMessage, refresh } =
   useBeautyHomeOverview(repository);
@@ -35,6 +41,7 @@ const backupService = createBackupRestoreService({
   files,
   appVersion: APP_VERSION,
   moduleContext: "beauty",
+  exportConfirmations,
 });
 const {
   exportState: backupExportState,
@@ -119,6 +126,33 @@ function requestBeautyRestoreConfirmation(): void {
   });
 }
 
+function requestShareResultConfirmation(): void {
+  uni.showModal({
+    title: "备份文件是否已发送？",
+    content: "请按微信聊天中的实际结果确认。若现在不处理，下次进入程序时会再次提醒。",
+    confirmText: "已发送",
+    cancelText: "未发送",
+    confirmColor: "#9A565D",
+    success(result) {
+      if (result.confirm) {
+        void confirmExportSent();
+      } else {
+        void confirmExportCancelled();
+      }
+    },
+    fail() {
+      uni.showToast({ title: "确认框打开失败，下次启动会再次提醒", icon: "none" });
+    },
+  });
+}
+
+async function shareAndConfirmExport(): Promise<void> {
+  await sharePreparedExport();
+  if (backupExportState.status === "awaiting-confirmation") {
+    requestShareResultConfirmation();
+  }
+}
+
 function returnBeautyHome(): void {
   if (
     backupRestoreState.status === "interrupted" ||
@@ -180,7 +214,7 @@ onShow(refreshActiveTab);
       export-scope="beauty"
       :allow-scope-selection="false"
       @prepare-export="prepareBackupExport"
-      @share-export="sharePreparedExport"
+      @share-export="shareAndConfirmExport"
       @confirm-export-sent="confirmExportSent"
       @confirm-export-cancelled="confirmExportCancelled"
       @select-restore="selectRestoreFile"

@@ -11,8 +11,8 @@
 		{
 			"path": "pages/backup-restore/index",
 			"style": {
-				"navigationBarTitleText": "备份与恢复",
-				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTitleText": "数据备份与恢复",
+				"navigationBarBackgroundColor": "#F3F1EC",
 				"navigationBarTextStyle": "black"
 			}
 		},

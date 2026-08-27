@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, shallowRef } from "vue";
 import { APP_VERSION } from "@/config/app";
 import BackupRestorePanel from "@/features/backup-restore/components/BackupRestorePanel.vue";
 import { useBackupRestoreFlow } from "@/features/backup-restore/composables/useBackupRestoreFlow";
@@ -11,6 +11,7 @@ import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/ba
 import { createApplicationDataRepository } from "@/repositories/application-data-repository";
 import { createBackupRestoreService } from "@/services/backup-restore-service";
 import { ensureApplicationDataRecovered } from "@/services/application-startup";
+import { createPendingExportConfirmationService } from "@/services/pending-export-confirmation-service";
 
 const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
 const files = createDefaultWechatBackupFileAdapter();
@@ -19,10 +20,15 @@ const repository = createApplicationDataRepository({
   rollbackFiles: files,
   appVersion: APP_VERSION,
 });
+const exportConfirmations = createPendingExportConfirmationService({
+  storage,
+  repository,
+});
 const service = createBackupRestoreService({
   repository,
   files,
   appVersion: APP_VERSION,
+  exportConfirmations,
 });
 const {
   exportState,
@@ -41,8 +47,8 @@ const {
   selectRestoreFile,
   confirmRestore,
 } = useBackupRestoreFlow({ service });
-const startupReady = ref(false);
-const startupError = ref("");
+const startupReady = shallowRef(false);
+const startupError = shallowRef("");
 
 async function prepareCurrentExport(): Promise<void> {
   await prepareCurrentDataBeforeRestore();
@@ -82,6 +88,56 @@ function selectExportScope(scope: "system" | "beauty"): void {
   );
 }
 
+function requestExportConfirmation(scope: "system" | "beauty"): void {
+  const isSystem = scope === "system";
+  uni.showModal({
+    title: isSystem ? "生成完整系统备份？" : "生成美容模块备份？",
+    content: isSystem
+      ? "将生成包含设置、模块授权和全部业务数据的未加密文件。文件可能包含顾客资料，请妥善保管。"
+      : "将生成只包含美容模块业务数据的未加密文件，不包含个人设置和模块授权。请妥善保管。",
+    confirmText: "生成备份",
+    cancelText: "暂不生成",
+    confirmColor: "#9A565D",
+    success(result) {
+      if (result.confirm) {
+        selectExportScope(scope);
+        void prepareExport();
+      }
+    },
+    fail() {
+      uni.showToast({ title: "确认框打开失败", icon: "none" });
+    },
+  });
+}
+
+function requestShareResultConfirmation(): void {
+  uni.showModal({
+    title: "备份文件是否已发送？",
+    content: "只有明确选择“已发送”，系统才会更新最近导出时间。若现在不处理，下次进入程序时会再次提醒。",
+    confirmText: "已发送",
+    cancelText: "未发送",
+    confirmColor: "#9A565D",
+    success(result) {
+      if (result.confirm) {
+        void confirmExportSent();
+      } else {
+        void confirmExportCancelled();
+      }
+    },
+    fail() {
+      // 页面中的确认卡仍保留；待确认状态也会在下次启动时再次弹出。
+      uni.showToast({ title: "确认框打开失败，下次启动会再次提醒", icon: "none" });
+    },
+  });
+}
+
+async function shareAndConfirmExport(): Promise<void> {
+  await sharePreparedExport();
+  if (exportState.status === "awaiting-confirmation") {
+    requestShareResultConfirmation();
+  }
+}
+
 function returnHome(): void {
   // reLaunch 强制重建启动流程，使刚恢复的模块授权和设置立即生效。
   uni.reLaunch({ url: "/pages/index/index" });
@@ -113,7 +169,8 @@ onMounted(initializePage);
       :export-scope="exportScope.kind === 'system' ? 'system' : 'beauty'"
       :allow-scope-selection="true"
       @prepare-export="prepareExport"
-      @share-export="sharePreparedExport"
+      @request-export-scope="requestExportConfirmation"
+      @share-export="shareAndConfirmExport"
       @confirm-export-sent="confirmExportSent"
       @confirm-export-cancelled="confirmExportCancelled"
       @select-restore="selectRestoreFile"
@@ -132,9 +189,7 @@ onMounted(initializePage);
 <style scoped>
 .backup-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 94% 2%, rgba(65, 102, 183, 0.08), transparent 30%),
-    #f8f9fb;
+  background: #f3f1ec;
 }
 
 .backup-page__startup {
@@ -145,16 +200,17 @@ onMounted(initializePage);
   justify-content: center;
   gap: 24rpx;
   padding: 40rpx;
-  color: #697284;
+  background: #f3f1ec;
+  color: #6f716c;
   font-size: 26rpx;
   text-align: center;
 }
 
 .backup-page__startup button {
   padding: 20rpx 34rpx;
-  border-radius: 14rpx;
-  background: #3159b5;
-  color: #ffffff;
+  border-radius: 20rpx;
+  background: #3d4a5d;
+  color: #f8f6f1;
   font-size: 25rpx;
 }
 </style>

@@ -7,6 +7,7 @@ import type {
   PreparedBackupExport,
   SelectedBackupRestore,
 } from "@/services/backup-restore-service";
+import { PendingExportSentDecisionCommittedError } from "@/services/pending-export-confirmation-service";
 import { useBackupRestoreFlow } from "./useBackupRestoreFlow";
 
 const NOW = "2026-08-08T06:30:00.000Z";
@@ -70,7 +71,9 @@ function createService(
       return createPrepared();
     },
     async sharePreparedExport() {},
+    async markExportAwaitingConfirmation() {},
     async recordConfirmedExport() {},
+    async discardPendingExportConfirmation() {},
     async removePreparedExport() {},
     async selectRestoreFile() {
       return createSelected();
@@ -138,7 +141,7 @@ describe("产品备份恢复 composable", () => {
     scope.stop();
   });
 
-  it("微信明确返回取消时直接显示取消状态", async () => {
+  it("微信返回取消时仍以强确认核对聊天中的实际结果", async () => {
     const service = createService({
       sharePreparedExport() {
         return Promise.reject(
@@ -154,7 +157,87 @@ describe("产品备份恢复 composable", () => {
     await flow?.prepareExport();
     await flow?.sharePreparedExport();
 
-    expect(flow?.exportState.status).toBe("cancelled");
+    expect(flow?.exportState.status).toBe("awaiting-confirmation");
+    expect(flow?.exportState.detail).toContain("实际结果确认");
+    scope.stop();
+  });
+
+  it("待确认状态落盘失败时仍等待微信分享返回，再要求用户当场确认", async () => {
+    let resolveShare: (() => void) | undefined;
+    let removed = false;
+    const service = createService({
+      sharePreparedExport() {
+        return new Promise<void>((resolve) => {
+          resolveShare = resolve;
+        });
+      },
+      async markExportAwaitingConfirmation() {
+        throw new Error("storage full");
+      },
+      async removePreparedExport() {
+        removed = true;
+      },
+    });
+    const scope = effectScope();
+    const flow = scope.run(() => useBackupRestoreFlow({ service }));
+
+    await flow?.prepareExport();
+    const sharing = flow?.sharePreparedExport();
+    await Promise.resolve();
+    expect(flow?.exportState.status).toBe("sharing");
+    expect(removed).toBe(false);
+
+    resolveShare?.();
+    await sharing;
+    expect(flow?.exportState.status).toBe("awaiting-confirmation");
+    expect(flow?.exportState.detail).toContain("下次启动无法自动提醒");
+    expect(removed).toBe(false);
+    scope.stop();
+  });
+
+  it("未发送状态清除失败时保留确认入口供用户重试", async () => {
+    const service = createService({
+      async discardPendingExportConfirmation() {
+        throw new Error("remove failed");
+      },
+    });
+    const scope = effectScope();
+    const flow = scope.run(() => useBackupRestoreFlow({ service }));
+
+    await flow?.prepareExport();
+    await flow?.sharePreparedExport();
+    await flow?.confirmExportCancelled();
+
+    expect(flow?.exportState.status).toBe("awaiting-confirmation");
+    expect(flow?.exportState.detail).toContain("未发送结果保存失败");
+    scope.stop();
+  });
+
+  it("已发送决定落盘后只允许重试完成记录，不能改选未发送", async () => {
+    let attempts = 0;
+    const service = createService({
+      async recordConfirmedExport() {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new PendingExportSentDecisionCommittedError(
+            new Error("remove failed"),
+          );
+        }
+      },
+    });
+    const scope = effectScope();
+    const flow = scope.run(() => useBackupRestoreFlow({ service }));
+
+    await flow?.prepareExport();
+    await flow?.sharePreparedExport();
+    await flow?.confirmExportSent();
+    expect(flow?.exportState.status).toBe("finalizing-sent");
+
+    await flow?.confirmExportCancelled();
+    expect(flow?.exportState.status).toBe("finalizing-sent");
+
+    await flow?.confirmExportSent();
+    expect(flow?.exportState.status).toBe("completed");
     scope.stop();
   });
 

@@ -21,6 +21,7 @@ import {
   type BackupScope,
 } from "@/services/portable-backup-envelope";
 import { createBackupFileName } from "@/utils/backup-file-name";
+import type { PendingExportConfirmationService } from "@/services/pending-export-confirmation-service";
 
 const ACTIVE_SHARE_SAFETY_MILLISECONDS = 15 * 60 * 1000;
 
@@ -83,6 +84,8 @@ export interface BackupRestoreServiceOptions {
   now?: () => Date;
   /** 模块内数据页设置后，只允许导出和恢复该模块，防止越过页面语义。 */
   moduleContext?: BusinessModuleId;
+  /** 保存微信转发后的待确认状态，使未处理结果能在下次启动时继续提醒。 */
+  exportConfirmations?: PendingExportConfirmationService;
 }
 
 /** 判断快照中是否存在需要覆盖确认的业务记录。 */
@@ -108,6 +111,7 @@ export function createBackupRestoreService(
     files,
     appVersion,
     moduleContext,
+    exportConfirmations,
     now = () => new Date(),
   } = options;
 
@@ -131,6 +135,7 @@ export function createBackupRestoreService(
       ? { kind: "modules", moduleIds: [moduleContext] }
       : { kind: "system" },
   ): Promise<PreparedBackupExport> {
+    await exportConfirmations?.assertAvailable();
     if (
       moduleContext &&
       (scope.kind !== "modules" ||
@@ -167,10 +172,32 @@ export function createBackupRestoreService(
     return files.shareFile(prepared.file);
   }
 
+  /** 微信转发面板打开后立即落盘，避免用户退出程序时丢失确认任务。 */
+  function markExportAwaitingConfirmation(
+    prepared: PreparedBackupExport,
+  ): Promise<void> {
+    if (!exportConfirmations) {
+      return Promise.resolve();
+    }
+    return exportConfirmations.mark({
+      createdAt: prepared.createdAt,
+      fileName: prepared.file.name,
+      scopeKind: prepared.scope.kind === "system" ? "system" : "beauty",
+    });
+  }
+
   /** 微信回调不能证明实际发送；仅在用户明确确认后记录最近导出信息。 */
   async function recordConfirmedExport(
     prepared: PreparedBackupExport,
   ): Promise<void> {
+    if (exportConfirmations) {
+      await exportConfirmations.confirmSent({
+        createdAt: prepared.createdAt,
+        fileName: prepared.file.name,
+        scopeKind: prepared.scope.kind === "system" ? "system" : "beauty",
+      });
+      return;
+    }
     if (prepared.scope.kind !== "system") {
       // 模块文件不能冒充完整系统备份并推迟七天保护提醒。
       return;
@@ -179,6 +206,16 @@ export function createBackupRestoreService(
       prepared.createdAt,
       prepared.file.name,
     );
+  }
+
+  function discardPendingExportConfirmation(
+    prepared: PreparedBackupExport,
+  ): Promise<void> {
+    return exportConfirmations?.confirmNotSent({
+      createdAt: prepared.createdAt,
+      fileName: prepared.file.name,
+      scopeKind: prepared.scope.kind === "system" ? "system" : "beauty",
+    }) ?? Promise.resolve();
   }
 
   function removePreparedExport(
@@ -255,7 +292,9 @@ export function createBackupRestoreService(
     readOverview,
     prepareExport,
     sharePreparedExport,
+    markExportAwaitingConfirmation,
     recordConfirmedExport,
+    discardPendingExportConfirmation,
     removePreparedExport,
     selectRestoreFile,
     inspectCurrentDataForRestore,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import UpCodeInput from "uview-plus/components/u-code-input/u-code-input.vue";
 import type { BusinessModuleId } from "@/domain/business-module";
+import ModuleCodeInput from "@/features/shared/components/ModuleCodeInput.vue";
 
 defineProps<{
   unlockedModules: readonly BusinessModuleId[];
@@ -38,16 +38,11 @@ defineEmits<{
       <text class="module-management__add-title">添加模块</text>
       <text class="module-management__add-copy">输入 6 位模块授权码。第一版只允许增加，不提供移除入口。</text>
       <view class="module-management__input">
-        <UpCodeInput
+        <ModuleCodeInput
           v-model="moduleCode"
           :maxlength="6"
-          :size="42"
-          :space="7"
-          :font-size="21"
-          mode="box"
-          bold
-          color="#172033"
-          border-color="#9aa7bd"
+          :disabled="submitting"
+          aria-label="请输入六位模块授权码"
         />
       </view>
       <text v-if="errorMessage" class="module-management__error">{{ errorMessage }}</text>
