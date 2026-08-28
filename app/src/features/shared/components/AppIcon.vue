@@ -55,11 +55,13 @@ const iconStyle = computed(() => ({
 
     <view v-else-if="name === 'backup'" class="app-icon__canvas app-icon__backup">
       <view class="app-icon__backup-lid" />
-      <view class="app-icon__backup-handle" />
       <view class="app-icon__backup-body" />
+      <view class="app-icon__backup-slot" />
     </view>
 
     <view v-else-if="name === 'history'" class="app-icon__canvas app-icon__history">
+      <view class="app-icon__history-orbit" />
+      <view class="app-icon__history-tail" />
       <view class="app-icon__history-face">
         <view class="app-icon__history-hand app-icon__history-hand--hour" />
         <view class="app-icon__history-hand app-icon__history-hand--minute" />
@@ -76,7 +78,14 @@ const iconStyle = computed(() => ({
     </view>
 
     <view v-else-if="name === 'shield'" class="app-icon__canvas app-icon__shield">
+      <view class="app-icon__shield-edge app-icon__shield-edge--top-left" />
+      <view class="app-icon__shield-edge app-icon__shield-edge--top-right" />
+      <view class="app-icon__shield-edge app-icon__shield-edge--right" />
+      <view class="app-icon__shield-edge app-icon__shield-edge--bottom-right" />
+      <view class="app-icon__shield-edge app-icon__shield-edge--bottom-left" />
+      <view class="app-icon__shield-edge app-icon__shield-edge--left" />
       <view class="app-icon__shield-mark" />
+      <view class="app-icon__shield-dot" />
     </view>
 
     <view v-else-if="name === 'modules'" class="app-icon__canvas app-icon__modules">
@@ -233,45 +242,68 @@ const iconStyle = computed(() => ({
 
 .app-icon__backup-lid {
   position: absolute;
-  top: 14%;
-  right: 9%;
-  left: 9%;
-  height: 18%;
+  top: 10%;
+  right: 8%;
+  left: 8%;
+  height: 24%;
   box-sizing: border-box;
   border: 2rpx solid currentColor;
-  border-radius: 4rpx;
-}
-
-.app-icon__backup-handle {
-  position: absolute;
-  z-index: 1;
-  top: 22%;
-  left: 50%;
-  width: 26%;
-  height: 18%;
-  box-sizing: border-box;
-  border: 2rpx solid currentColor;
-  border-radius: 2rpx;
-  transform: translateX(-50%);
+  border-radius: 5rpx 5rpx 3rpx 3rpx;
 }
 
 .app-icon__backup-body {
   position: absolute;
+  top: 31%;
   right: 14%;
-  bottom: 10%;
+  bottom: 8%;
   left: 14%;
-  height: 58%;
   box-sizing: border-box;
   border: 2rpx solid currentColor;
-  border-radius: 4rpx 4rpx 7rpx 7rpx;
+  border-radius: 3rpx 3rpx 7rpx 7rpx;
+}
+
+.app-icon__backup-slot {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  width: 25%;
+  height: 2rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.app-icon__history-orbit {
+  position: absolute;
+  top: 6%;
+  left: 6%;
+  width: 82%;
+  height: 82%;
+  box-sizing: border-box;
+  border: 2rpx solid currentColor;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+
+.app-icon__history-tail {
+  position: absolute;
+  right: 7%;
+  bottom: 4%;
+  width: 48%;
+  height: 45%;
+  box-sizing: border-box;
+  border-right: 2rpx dashed currentColor;
+  border-bottom: 2rpx dashed currentColor;
+  border-radius: 0 0 50% 0;
 }
 
 .app-icon__history-face {
   position: absolute;
-  top: 12%;
-  left: 12%;
-  width: 68%;
-  height: 68%;
+  top: 24%;
+  left: 24%;
+  width: 52%;
+  height: 52%;
   box-sizing: border-box;
   border: 2rpx solid currentColor;
   border-radius: 50%;
@@ -287,35 +319,35 @@ const iconStyle = computed(() => ({
 }
 
 .app-icon__history-hand--hour {
-  width: 24%;
+  width: 27%;
   height: 2rpx;
   transform: rotate(44deg);
 }
 
 .app-icon__history-hand--minute {
   width: 2rpx;
-  height: 28%;
+  height: 31%;
   transform: translateY(-100%);
 }
 
 .app-icon__history-arrow {
   position: absolute;
-  right: 5%;
-  bottom: 4%;
-  width: 30%;
-  height: 30%;
+  top: 42%;
+  right: 2%;
+  width: 16%;
+  height: 16%;
   box-sizing: border-box;
   border-right: 2rpx solid currentColor;
   border-bottom: 2rpx solid currentColor;
-  transform: rotate(-8deg);
+  transform: rotate(42deg);
 }
 
 .app-icon__file-body {
   position: absolute;
-  top: 4%;
-  left: 6%;
-  width: 66%;
-  height: 84%;
+  top: 3%;
+  left: 5%;
+  width: 62%;
+  height: 86%;
   box-sizing: border-box;
   border: 2rpx solid currentColor;
   border-radius: 4rpx 10rpx 7rpx 7rpx;
@@ -335,46 +367,103 @@ const iconStyle = computed(() => ({
 
 .app-icon__restore-arc {
   position: absolute;
-  right: 1%;
-  bottom: 3%;
-  width: 52%;
-  height: 52%;
+  right: 0;
+  bottom: 1%;
+  width: 56%;
+  height: 56%;
   box-sizing: border-box;
   border: 2rpx solid currentColor;
-  border-left-color: transparent;
+  border-top-color: transparent;
   border-radius: 50%;
-  transform: rotate(24deg);
+  transform: rotate(-18deg);
 }
 
 .app-icon__restore-arrow {
   position: absolute;
-  right: 44%;
-  bottom: 35%;
-  width: 18%;
-  height: 18%;
+  right: 42%;
+  bottom: 30%;
+  width: 17%;
+  height: 17%;
   box-sizing: border-box;
   border-bottom: 2rpx solid currentColor;
   border-left: 2rpx solid currentColor;
-  transform: rotate(18deg);
+  transform: rotate(40deg);
 }
 
 .app-icon__shield {
-  width: 82%;
-  height: 92%;
-  box-sizing: border-box;
-  border: 2rpx solid currentColor;
-  border-radius: 44% 44% 52% 52% / 28% 28% 68% 68%;
+  width: 100%;
+  height: 100%;
+}
+
+.app-icon__shield-edge {
+  position: absolute;
+  height: 2rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+  transform-origin: left center;
+}
+
+.app-icon__shield-edge--top-left {
+  top: 18%;
+  left: 16%;
+  width: 37%;
+  transform: rotate(-19deg);
+}
+
+.app-icon__shield-edge--top-right {
+  top: 6%;
+  left: 50%;
+  width: 37%;
+  transform: rotate(19deg);
+}
+
+.app-icon__shield-edge--right {
+  top: 18%;
+  left: 84%;
+  width: 43%;
+  transform: rotate(94deg);
+}
+
+.app-icon__shield-edge--bottom-right {
+  top: 60%;
+  left: 81%;
+  width: 46%;
+  transform: rotate(134deg);
+}
+
+.app-icon__shield-edge--bottom-left {
+  top: 60%;
+  left: 19%;
+  width: 46%;
+  transform: rotate(46deg);
+}
+
+.app-icon__shield-edge--left {
+  top: 18%;
+  left: 16%;
+  width: 43%;
+  transform: rotate(86deg);
 }
 
 .app-icon__shield-mark {
   position: absolute;
-  top: 29%;
+  top: 31%;
   left: 50%;
   width: 2rpx;
-  height: 31%;
+  height: 29%;
   border-radius: 2rpx;
   background: currentColor;
-  box-shadow: 0 15rpx 0 1rpx currentColor;
+  transform: translateX(-50%);
+}
+
+.app-icon__shield-dot {
+  position: absolute;
+  top: 69%;
+  left: 50%;
+  width: 8%;
+  height: 8%;
+  border-radius: 50%;
+  background: currentColor;
   transform: translateX(-50%);
 }
 

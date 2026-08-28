@@ -25,7 +25,7 @@ function requestExport(scope: "system" | "beauty"): void {
       hover-class="scope-actions__row--pressed"
       @click="requestExport('system')"
     >
-      <view class="scope-actions__icon scope-actions__icon--system">
+      <view class="scope-actions__icon">
         <AppIcon name="backup" :size="26" color="#3D4A5D" />
       </view>
       <view class="scope-actions__copy">
@@ -43,7 +43,7 @@ function requestExport(scope: "system" | "beauty"): void {
       hover-class="scope-actions__row--pressed"
       @click="requestExport('beauty')"
     >
-      <view class="scope-actions__icon scope-actions__icon--module">
+      <view class="scope-actions__icon">
         <AppIcon name="modules" :size="25" color="#3D4A5D" />
       </view>
       <view class="scope-actions__copy">
@@ -98,15 +98,7 @@ function requestExport(scope: "system" | "beauty"): void {
   flex: none;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid rgba(255, 255, 255, 0.7);
-  border-radius: 19rpx;
-  background: rgba(61, 74, 93, 0.08);
-  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.56);
   line-height: 0;
-}
-
-.scope-actions__icon--system {
-  background: rgba(183, 131, 140, 0.12);
 }
 
 .scope-actions__copy {

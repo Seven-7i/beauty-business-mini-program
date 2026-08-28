@@ -25,9 +25,7 @@ const exportValue = computed(() =>
       </text>
     </view>
     <view class="export-overview__icon" aria-hidden="true">
-      <view class="export-overview__ring export-overview__ring--outer" />
-      <view class="export-overview__ring export-overview__ring--inner" />
-      <AppIcon name="history" :size="39" color="#566272" />
+      <AppIcon name="history" :size="60" color="#566272" />
     </view>
   </view>
 </template>
@@ -101,34 +99,12 @@ const exportValue = computed(() =>
 .export-overview__icon {
   position: relative;
   display: flex;
-  width: 134rpx;
-  height: 134rpx;
+  width: 140rpx;
+  height: 140rpx;
   flex: none;
   align-items: center;
   justify-content: center;
   line-height: 0;
-}
-
-.export-overview__ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  box-sizing: border-box;
-  border: 2rpx solid rgba(61, 74, 93, 0.2);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.export-overview__ring--outer {
-  width: 100%;
-  height: 100%;
-  border-style: dashed;
-}
-
-.export-overview__ring--inner {
-  width: 72%;
-  height: 72%;
-  background: rgba(255, 255, 255, 0.22);
 }
 
 @media (max-width: 360px) {
@@ -138,8 +114,8 @@ const exportValue = computed(() =>
   }
 
   .export-overview__icon {
-    width: 116rpx;
-    height: 116rpx;
+    width: 130rpx;
+    height: 130rpx;
   }
 }
 </style>

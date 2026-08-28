@@ -75,7 +75,6 @@ describe("阶段 4 界面韧性契约", () => {
   it("线条图标使用统一绝对居中画布且图标底座不产生文本行盒偏移", () => {
     const icon = readSource("./shared/components/AppIcon.vue");
     const myMenu = readSource("./my-center/components/MyCenterMenu.vue");
-    const storage = readSource("./storage-capacity/components/StorageCapacityCard.vue");
 
     expect(icon).toContain("app-icon__canvas");
     expect(icon).toMatch(
@@ -83,7 +82,54 @@ describe("阶段 4 界面韧性契约", () => {
     );
     expect(icon).toMatch(/\.app-icon\s*\{[^}]*display:\s*block;[^}]*line-height:\s*0;/s);
     expect(myMenu).toMatch(/\.my-menu__icon\s*\{[^}]*line-height:\s*0;/s);
-    expect(storage).toMatch(/\.storage-card__icon\s*\{[^}]*line-height:\s*0;/s);
+  });
+
+  it("全局页面图标沿用定稿轮廓且不叠加偏离图稿的装饰底座", () => {
+    const icon = readSource("./shared/components/AppIcon.vue");
+    const overview = readSource(
+      "./backup-restore/components/BackupExportOverview.vue",
+    );
+    const myMenu = readSource("./my-center/components/MyCenterMenu.vue");
+    const storage = readSource(
+      "./storage-capacity/components/StorageCapacityCard.vue",
+    );
+    const scopeActions = readSource(
+      "./backup-restore/components/BackupScopeActions.vue",
+    );
+    const restoreSection = readSource(
+      "./backup-restore/components/SystemBackupRestoreSection.vue",
+    );
+    const exportSection = readSource(
+      "./backup-restore/components/SystemBackupExportSection.vue",
+    );
+    const restoreCandidate = readSource(
+      "./backup-restore/components/BackupRestoreCandidate.vue",
+    );
+
+    expect(icon).toContain("app-icon__history-orbit");
+    expect(icon).toContain("app-icon__history-tail");
+    expect(icon).toContain("app-icon__backup-slot");
+    expect(icon).toContain("app-icon__shield-edge--bottom-right");
+    expect(overview).toContain('<AppIcon name="history" :size="60"');
+    expect(overview).not.toContain("export-overview__ring");
+
+    expect(myMenu).not.toMatch(
+      /\.my-menu__icon\s*\{[^}]*(?:border|background|box-shadow):/s,
+    );
+    expect(scopeActions).not.toMatch(
+      /\.scope-actions__icon\s*\{[^}]*(?:border|background|box-shadow):/s,
+    );
+    expect(restoreSection).not.toMatch(
+      /\.system-restore__icon\s*\{[^}]*(?:border|background|box-shadow):/s,
+    );
+    expect(exportSection).not.toMatch(
+      /\.system-export__icon\s*\{[^}]*(?:border|background|box-shadow):/s,
+    );
+    expect(restoreCandidate).not.toMatch(
+      /\.restore-candidate__icon\s*\{[^}]*(?:border|background|box-shadow):/s,
+    );
+    expect(storage).not.toContain('<AppIcon name="storage"');
+    expect(storage).not.toContain("storage-card__icon");
   });
 
   it("系统备份恢复页沿用暖石磨砂层次且不把视觉稿图片带入运行时", () => {

@@ -87,8 +87,6 @@ const props = defineProps<{
   flex: none;
   align-items: center;
   justify-content: center;
-  border-radius: 18rpx;
-  background: rgba(61, 74, 93, 0.09);
   line-height: 0;
 }
 

@@ -29,7 +29,7 @@ const emit = defineEmits<{
         hover-class="my-menu__row--pressed"
         @click="emit('backup-restore')"
       >
-        <view class="my-menu__icon my-menu__icon--backup">
+        <view class="my-menu__icon">
           <AppIcon name="backup" :size="23" color="#76565C" />
         </view>
         <view class="my-menu__copy">
@@ -49,7 +49,7 @@ const emit = defineEmits<{
         hover-class="my-menu__row--pressed"
         @click="emit('manage-modules')"
       >
-        <view class="my-menu__icon my-menu__icon--modules">
+        <view class="my-menu__icon">
           <AppIcon name="modules" :size="23" color="#3D4A5D" />
         </view>
         <view class="my-menu__copy">
@@ -66,7 +66,7 @@ const emit = defineEmits<{
         hover-class="my-menu__row--pressed"
         @click="emit('usage-guide')"
       >
-        <view class="my-menu__icon my-menu__icon--guide">
+        <view class="my-menu__icon">
           <AppIcon name="info" :size="23" color="#6D685B" />
         </view>
         <view class="my-menu__copy">
@@ -147,22 +147,7 @@ const emit = defineEmits<{
   flex: none;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid rgba(255, 255, 255, 0.64);
-  border-radius: 18rpx;
-  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.5);
   line-height: 0;
-}
-
-.my-menu__icon--backup {
-  background: rgba(183, 131, 140, 0.14);
-}
-
-.my-menu__icon--modules {
-  background: rgba(61, 74, 93, 0.1);
-}
-
-.my-menu__icon--guide {
-  background: rgba(188, 164, 127, 0.16);
 }
 
 .my-menu__copy {

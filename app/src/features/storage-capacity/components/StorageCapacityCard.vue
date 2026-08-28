@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, type DeepReadonly } from "vue";
-import AppIcon from "@/features/shared/components/AppIcon.vue";
 import type { StorageCapacitySummary } from "@/services/storage-capacity-service";
 
 const props = defineProps<{
@@ -56,9 +55,6 @@ const statusText = computed(() => {
 
     <view class="storage-card__heading">
       <view class="storage-card__identity">
-        <view class="storage-card__icon">
-          <AppIcon name="storage" :size="25" color="#3D4A5D" />
-        </view>
         <view class="storage-card__copy">
           <text class="storage-card__eyebrow">本机存储</text>
           <text class="storage-card__value">已使用 {{ usedText }}</text>
@@ -158,21 +154,6 @@ const statusText = computed(() => {
 .storage-card__identity {
   min-width: 0;
   flex: 1;
-  gap: 22rpx;
-}
-
-.storage-card__icon {
-  display: flex;
-  width: 64rpx;
-  height: 64rpx;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border: 2rpx solid rgba(255, 255, 255, 0.7);
-  border-radius: 18rpx;
-  background: rgba(61, 74, 93, 0.09);
-  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.55);
-  line-height: 0;
 }
 
 .storage-card__copy {
@@ -309,11 +290,6 @@ const statusText = computed(() => {
 
   .storage-card__heading {
     align-items: flex-start;
-  }
-
-  .storage-card__icon {
-    width: 58rpx;
-    height: 58rpx;
   }
 
   .storage-card__manage {

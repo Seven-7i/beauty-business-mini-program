@@ -204,9 +204,6 @@ const currentExportButtonText = computed(() => {
   flex: none;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid rgba(255, 255, 255, 0.66);
-  border-radius: 21rpx;
-  background: rgba(61, 74, 93, 0.08);
   line-height: 0;
 }
 

@@ -168,8 +168,6 @@ const scopeLabel = computed(() =>
   flex: none;
   align-items: center;
   justify-content: center;
-  border-radius: 18rpx;
-  background: rgba(183, 131, 140, 0.12);
   line-height: 0;
 }
 
