@@ -200,6 +200,38 @@ describe("阶段 4 界面韧性契约", () => {
     }
   });
 
+  it("模块管理作为独立系统子页实现定稿且不显示全局底部导航", () => {
+    const pages = readSource("../pages.json");
+    const index = readSource("../pages/index/index.vue");
+    const page = readSource("../pages/module-management/index.vue");
+    const management = readSource("./my-center/components/ModuleManagement.vue");
+    const modules = readSource("./my-center/components/UnlockedModulesCard.vue");
+    const authorization = readSource(
+      "./my-center/components/ModuleAuthorizationForm.vue",
+    );
+
+    expect(pages).toContain('"path": "pages/module-management/index"');
+    expect(index).toContain('uni.navigateTo({ url: "/pages/module-management/index" })');
+    expect(index).not.toContain("managingModules");
+    expect(page).toContain("onShow(refresh)");
+    expect(page).not.toContain("AppBottomNavigation");
+    expect(management).toContain("管理业务模块");
+    expect(management).toContain("模块仅在当前设备开启");
+    expect(management).toContain("已解锁模块");
+    expect(management).toContain('v-if="!props.readError || props.hasLoaded"');
+    expect(management).toMatch(/\.module-management\s*\{[^}]*background:\s*#f3f1ec;/s);
+    expect(modules).toContain("顾客 · 项目 · 预约");
+    expect(modules).toContain("已解锁");
+    expect(authorization).toContain("输入 6 位模块授权码");
+    expect(authorization).toContain("第一版只允许增加模块，不提供移除入口");
+    expect(authorization).toContain(':maxlength="6"');
+
+    for (const source of [page, management, modules, authorization]) {
+      expect(source).not.toContain("<image");
+      expect(source).not.toContain("data:image/");
+    }
+  });
+
   it("未确认导出由全局启动门禁优先处理，分享页返回后立即强确认", () => {
     const app = readSource("../App.vue");
     const index = readSource("../pages/index/index.vue");

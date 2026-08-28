@@ -8,7 +8,6 @@ import ModuleUnlockSuccess from "@/features/module-activation/components/ModuleU
 import BeautyWorkbench from "@/features/workbench/components/BeautyWorkbench.vue";
 import AppBottomNavigation from "@/features/app-shell/components/AppBottomNavigation.vue";
 import type { AppShellTab } from "@/features/app-shell/types";
-import ModuleManagement from "@/features/my-center/components/ModuleManagement.vue";
 import MyCenter from "@/features/my-center/components/MyCenter.vue";
 import { useMyCenter } from "@/features/my-center/composables/useMyCenter";
 import { useBackupReminder } from "@/features/backup-reminder/composables/useBackupReminder";
@@ -64,7 +63,6 @@ const unsubscribeStorageCapacity = subscribeStorageCapacityChanged(() => {
   void checkProtectionReminders();
 });
 const activeTab = shallowRef<AppShellTab>("workbench");
-const managingModules = shallowRef(false);
 const myCenterService = createMyCenterService({
   repository: applicationData,
   storage,
@@ -73,12 +71,8 @@ const {
   overview: myOverview,
   loading: myLoading,
   overviewError: myOverviewError,
-  moduleCode: additionalModuleCode,
-  moduleError,
-  submittingModuleCode,
   refresh: refreshMyCenter,
-  unlockAdditionalModule,
-} = useMyCenter({ service: myCenterService, moduleAuthorization });
+} = useMyCenter({ service: myCenterService });
 
 async function initializePage(): Promise<void> {
   await initialize();
@@ -122,7 +116,6 @@ async function checkWorkbenchReminder(): Promise<void> {
 }
 
 function selectTab(tab: AppShellTab): void {
-  managingModules.value = false;
   activeTab.value = tab;
   const titles: Record<AppShellTab, string> = {
     workbench: "工作台",
@@ -137,14 +130,7 @@ function selectTab(tab: AppShellTab): void {
 }
 
 function openModuleManagement(): void {
-  managingModules.value = true;
-  uni.setNavigationBarTitle({ title: "模块管理" });
-  void refreshMyCenter();
-}
-
-function closeModuleManagement(): void {
-  managingModules.value = false;
-  uni.setNavigationBarTitle({ title: "我的" });
+  uni.navigateTo({ url: "/pages/module-management/index" });
 }
 
 function showUsageGuide(): void {
@@ -228,37 +214,25 @@ onShow(checkWorkbenchReminder);
     />
 
     <template v-else>
-      <ModuleManagement
-        v-if="managingModules"
-        v-model="additionalModuleCode"
-        :unlocked-modules="myOverview?.unlockedModules ?? []"
-        :submitting="submittingModuleCode"
-        :error-message="moduleError"
-        @back="closeModuleManagement"
-        @submit="unlockAdditionalModule"
+      <BeautyWorkbench
+        v-if="activeTab === 'workbench'"
+        @open-module="openBeautyModule"
       />
-
-      <template v-else>
-        <BeautyWorkbench
-          v-if="activeTab === 'workbench'"
-          @open-module="openBeautyModule"
-        />
-        <MyCenter
-          v-else
-          :overview="myOverview"
-          :loading="myLoading"
-          :error-message="myOverviewError"
-          @backup-restore="openBackupRestore"
-          @manage-modules="openModuleManagement"
-          @usage-guide="showUsageGuide"
-          @cleanup-history="requestHistoryCleanup"
-          @retry="refreshMyCenter"
-        />
-        <AppBottomNavigation
-          :active-tab="activeTab"
-          @select="selectTab"
-        />
-      </template>
+      <MyCenter
+        v-else
+        :overview="myOverview"
+        :loading="myLoading"
+        :error-message="myOverviewError"
+        @backup-restore="openBackupRestore"
+        @manage-modules="openModuleManagement"
+        @usage-guide="showUsageGuide"
+        @cleanup-history="requestHistoryCleanup"
+        @retry="refreshMyCenter"
+      />
+      <AppBottomNavigation
+        :active-tab="activeTab"
+        @select="selectTab"
+      />
     </template>
   </view>
 </template>

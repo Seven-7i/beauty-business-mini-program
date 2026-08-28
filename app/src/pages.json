@@ -17,6 +17,14 @@
 			}
 		},
 		{
+			"path": "pages/module-management/index",
+			"style": {
+				"navigationBarTitleText": "模块管理",
+				"navigationBarBackgroundColor": "#F3F1EC",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/inventory/index",
 			"style": {
 				"navigationBarTitleText": "物品库存",

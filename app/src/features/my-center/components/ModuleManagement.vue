@@ -1,79 +1,192 @@
 <script setup lang="ts">
 import type { BusinessModuleId } from "@/domain/business-module";
-import ModuleCodeInput from "@/features/shared/components/ModuleCodeInput.vue";
+import ModuleAuthorizationForm from "@/features/my-center/components/ModuleAuthorizationForm.vue";
+import UnlockedModulesCard from "@/features/my-center/components/UnlockedModulesCard.vue";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
-defineProps<{
+const props = defineProps<{
   unlockedModules: readonly BusinessModuleId[];
+  loading: boolean;
+  hasLoaded: boolean;
+  readError: string;
   submitting: boolean;
   errorMessage: string;
 }>();
 
 const moduleCode = defineModel<string>({ required: true });
 
-defineEmits<{
-  (event: "back"): void;
+const emit = defineEmits<{
+  (event: "retry"): void;
   (event: "submit"): void;
 }>();
 </script>
 
 <template>
   <view class="module-management">
-    <button class="module-management__back" @click="$emit('back')">‹ 返回我的</button>
-    <text class="module-management__eyebrow">本机授权</text>
-    <text class="module-management__title">模块管理</text>
+    <view class="module-management__atmosphere module-management__atmosphere--rose" aria-hidden="true" />
+    <view class="module-management__atmosphere module-management__atmosphere--sand" aria-hidden="true" />
+    <view class="module-management__atmosphere module-management__atmosphere--slate" aria-hidden="true" />
 
-    <view class="module-management__module">
-      <view class="module-management__icon">
-        <view v-for="index in 4" :key="index" />
+    <view class="module-management__content">
+      <view class="module-management__intro">
+        <text class="module-management__eyebrow">本机授权</text>
+        <text class="module-management__title">管理业务模块</text>
+        <text class="module-management__description">模块仅在当前设备开启</text>
       </view>
-      <view>
-        <text class="module-management__name">美容</text>
-        <text class="module-management__status">
-          {{ unlockedModules.includes("beauty") ? "已解锁" : "未解锁" }}
-        </text>
-      </view>
-    </view>
 
-    <view class="module-management__add">
-      <text class="module-management__add-title">添加模块</text>
-      <text class="module-management__add-copy">输入 6 位模块授权码。第一版只允许增加，不提供移除入口。</text>
-      <view class="module-management__input">
-        <ModuleCodeInput
-          v-model="moduleCode"
-          :maxlength="6"
-          :disabled="submitting"
-          aria-label="请输入六位模块授权码"
+      <view class="module-management__section">
+        <view class="module-management__section-heading">
+          <view class="module-management__section-mark" aria-hidden="true" />
+          <text class="module-management__section-title">已解锁模块</text>
+        </view>
+
+        <RecoverableErrorNotice
+          v-if="props.readError"
+          :message="props.readError"
+          retryable
+          :retrying="props.loading"
+          @retry="emit('retry')"
+        />
+        <UnlockedModulesCard
+          v-if="!props.readError || props.hasLoaded"
+          :unlocked-modules="props.unlockedModules"
+          :loading="props.loading"
         />
       </view>
-      <text v-if="errorMessage" class="module-management__error">{{ errorMessage }}</text>
-      <button
-        class="module-management__submit"
-        :loading="submitting"
-        :disabled="submitting || moduleCode.length !== 6"
-        @click="$emit('submit')"
-      >
-        开启模块
-      </button>
+
+      <view class="module-management__section module-management__section--add">
+        <view class="module-management__section-heading">
+          <view class="module-management__section-mark" aria-hidden="true" />
+          <text class="module-management__section-title">添加模块</text>
+        </view>
+
+        <ModuleAuthorizationForm
+          v-model="moduleCode"
+          :submitting="props.submitting"
+          :error-message="props.errorMessage"
+          @submit="emit('submit')"
+        />
+      </view>
     </view>
   </view>
 </template>
 
 <style scoped>
-.module-management { min-height: 100vh; box-sizing: border-box; padding: 38rpx 30rpx 70rpx; }
-.module-management__back { width: auto; background: transparent; color: #31549e; font-size: 24rpx; }
-.module-management__eyebrow, .module-management__title, .module-management__name, .module-management__status, .module-management__add-title, .module-management__add-copy, .module-management__error { display: block; }
-.module-management__eyebrow { margin-top: 34rpx; color: #31549e; font-size: 23rpx; font-weight: 600; }
-.module-management__title { margin-top: 12rpx; color: #172033; font-size: 43rpx; font-weight: 700; }
-.module-management__module { display: flex; align-items: center; gap: 22rpx; margin-top: 34rpx; padding: 28rpx; border: 2rpx solid #dce1e9; border-radius: 20rpx; background: #ffffff; }
-.module-management__icon { display: grid; width: 72rpx; height: 72rpx; grid-template-columns: 1fr 1fr; gap: 7rpx; padding: 15rpx; box-sizing: border-box; border-radius: 17rpx; background: #3159b5; }
-.module-management__icon view { border-radius: 4rpx; background: #ffffff; }
-.module-management__name { color: #202a3b; font-size: 29rpx; font-weight: 650; }
-.module-management__status { margin-top: 6rpx; color: #287461; font-size: 22rpx; }
-.module-management__add { margin-top: 28rpx; padding: 30rpx; border: 2rpx solid #dce1e9; border-radius: 20rpx; background: #ffffff; }
-.module-management__add-title { color: #202a3b; font-size: 29rpx; font-weight: 650; }
-.module-management__add-copy { margin-top: 10rpx; color: #747d8c; font-size: 22rpx; line-height: 1.55; }
-.module-management__input { display: flex; justify-content: center; margin-top: 28rpx; }
-.module-management__error { margin-top: 14rpx; color: #b43d3d; font-size: 23rpx; }
-.module-management__submit { height: 92rpx; margin-top: 26rpx; border-radius: 16rpx; background: #3159b5; color: #ffffff; font-size: 28rpx; font-weight: 600; }
-.module-management__submit[disabled] { background: #aebbd7; }
+.module-management {
+  position: relative;
+  min-height: calc(100vh - 88rpx);
+  overflow: hidden;
+  background: #f3f1ec;
+  color: #242620;
+}
+
+.module-management__atmosphere {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(96rpx);
+  pointer-events: none;
+}
+
+.module-management__atmosphere--rose {
+  top: 70rpx;
+  left: -220rpx;
+  width: 520rpx;
+  height: 520rpx;
+  background: rgba(183, 131, 140, 0.22);
+}
+
+.module-management__atmosphere--sand {
+  top: 820rpx;
+  right: -230rpx;
+  width: 570rpx;
+  height: 570rpx;
+  background: rgba(188, 158, 121, 0.24);
+}
+
+.module-management__atmosphere--slate {
+  bottom: -120rpx;
+  left: 40rpx;
+  width: 430rpx;
+  height: 430rpx;
+  background: rgba(61, 74, 93, 0.08);
+}
+
+.module-management__content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 54rpx 46rpx calc(64rpx + env(safe-area-inset-bottom));
+}
+
+.module-management__intro {
+  display: flex;
+  flex-direction: column;
+}
+
+.module-management__eyebrow {
+  color: #696c67;
+  font-size: 25rpx;
+  font-weight: 500;
+  letter-spacing: 3rpx;
+}
+
+.module-management__title {
+  margin-top: 24rpx;
+  color: #242620;
+  font-size: 54rpx;
+  font-weight: 660;
+  letter-spacing: -2rpx;
+  line-height: 1.14;
+}
+
+.module-management__description {
+  margin-top: 20rpx;
+  color: #6f716c;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.module-management__section {
+  margin-top: 58rpx;
+}
+
+.module-management__section--add {
+  margin-top: 46rpx;
+}
+
+.module-management__section-heading {
+  display: flex;
+  min-height: 62rpx;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.module-management__section-mark {
+  width: 7rpx;
+  height: 28rpx;
+  border-radius: 4rpx;
+  background: #bca47f;
+}
+
+.module-management__section-title {
+  color: #242620;
+  font-size: 30rpx;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+@media (max-width: 360px) {
+  .module-management__content {
+    padding-right: 34rpx;
+    padding-left: 34rpx;
+  }
+
+  .module-management__title {
+    font-size: 49rpx;
+  }
+
+  .module-management__section {
+    margin-top: 48rpx;
+  }
+}
 </style>
