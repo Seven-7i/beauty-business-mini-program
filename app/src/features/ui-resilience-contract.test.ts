@@ -72,7 +72,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(inventory).not.toContain(".item-card__name {\n  overflow: hidden");
   });
 
-  it("线条图标使用统一绝对居中画布且图标底座不产生文本行盒偏移", () => {
+  it("线条图标使用统一居中画布且图标底座不产生文本行盒偏移", () => {
     const icon = readSource("./shared/components/AppIcon.vue");
     const myMenu = readSource("./my-center/components/MyCenterMenu.vue");
 
@@ -80,6 +80,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(icon).toMatch(
       /\.app-icon__canvas\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
     );
+    expect(icon).not.toContain("<svg");
     expect(icon).toMatch(/\.app-icon\s*\{[^}]*display:\s*block;[^}]*line-height:\s*0;/s);
     expect(myMenu).toMatch(/\.my-menu__icon\s*\{[^}]*line-height:\s*0;/s);
   });
@@ -106,10 +107,18 @@ describe("阶段 4 界面韧性契约", () => {
       "./backup-restore/components/BackupRestoreCandidate.vue",
     );
 
-    expect(icon).toContain("app-icon__history-orbit");
-    expect(icon).toContain("app-icon__history-tail");
-    expect(icon).toContain("app-icon__backup-slot");
-    expect(icon).toContain("app-icon__shield-edge--bottom-right");
+    expect(icon).toContain("app-icon__glyph--history");
+    expect(icon).toContain("app-icon__glyph--backup");
+    expect(icon).toContain("app-icon__glyph--file-restore");
+    expect(icon).toContain("app-icon__glyph--shield");
+    expect(icon).not.toContain("app-icon__history-tail");
+    expect(icon).not.toContain("app-icon__history-orbit");
+    expect(icon).not.toContain("app-icon__history-arrow");
+    expect(icon).not.toContain("border-right: 2rpx dashed");
+    expect(icon).not.toContain("border-left-color: transparent");
+    expect(icon).toMatch(
+      /\.app-icon__history-face\s*\{[^}]*border:\s*2rpx solid currentColor;[^}]*border-radius:\s*50%;/s,
+    );
     expect(overview).toContain('<AppIcon name="history" :size="60"');
     expect(overview).not.toContain("export-overview__ring");
 
