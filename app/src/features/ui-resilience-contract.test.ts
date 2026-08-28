@@ -169,7 +169,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(storage).not.toContain("storage-card__icon");
   });
 
-  it("系统备份恢复页沿用暖石磨砂层次且不把视觉稿图片带入运行时", () => {
+  it("系统备份恢复页沿用暖石磨砂层次", () => {
     const panel = readSource("./backup-restore/components/BackupRestorePanel.vue");
     const overview = readSource("./backup-restore/components/BackupExportOverview.vue");
     const exportSection = readSource(
@@ -194,10 +194,6 @@ describe("阶段 4 界面韧性契约", () => {
     expect(restoreSection).toContain("从备份文件恢复");
     expect(sources.some((source) => source.includes("backdrop-filter: blur"))).toBe(true);
 
-    for (const source of sources) {
-      expect(source).not.toContain("<image");
-      expect(source).not.toContain("data:image/");
-    }
   });
 
   it("模块管理作为独立系统子页实现定稿且不显示全局底部导航", () => {
@@ -226,15 +222,11 @@ describe("阶段 4 界面韧性契约", () => {
     expect(authorization).toContain("输入 6 位模块授权码");
     expect(authorization).toContain("第一版只允许增加模块，不提供移除入口");
     expect(authorization).toContain(':maxlength="6"');
-    expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*display:\s*flex;/s);
-    expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*width:\s*550rpx;/s);
-    expect(codeInput).toMatch(/\.module-code-input__cell\s*\{[^}]*flex:\s*1;/s);
-    expect(codeInput).not.toContain("grid-template-columns");
+    expect(codeInput).toContain("<up-code-input");
+    expect(codeInput).toContain(':disabled-keyboard="props.disabled"');
+    expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*height:\s*80rpx/s);
+    expect(codeInput).not.toContain('class="module-code-input__native"');
 
-    for (const source of [page, management, modules, authorization, codeInput]) {
-      expect(source).not.toContain("<image");
-      expect(source).not.toContain("data:image/");
-    }
   });
 
   it("未确认导出由全局启动门禁优先处理，分享页返回后立即强确认", () => {

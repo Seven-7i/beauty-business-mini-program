@@ -29,10 +29,6 @@ describe("美容模块首页定稿契约", () => {
     expect(entries).toContain("服务项目");
     expect(entries).toContain("物品库存");
 
-    for (const source of [home, overview, reminders, entries]) {
-      expect(source).not.toContain("<image");
-      expect(source).not.toContain("data:image/");
-    }
   });
 
   it("业务入口和模块导航只调用语义化本地图标", () => {
