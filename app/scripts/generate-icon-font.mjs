@@ -287,22 +287,28 @@ function createHistory() {
 
 function createFileRestore() {
   const path = new GlyphPath();
+  addPolyline(
+    path,
+    [
+      [250, 120],
+      [250, 800],
+      [535, 800],
+      [750, 585],
+      [750, 120],
+    ],
+    true,
+  );
   addPolyline(path, [
-    [190, 100],
-    [190, 810],
-    [500, 810],
-    [670, 640],
-    [670, 470],
+    [535, 800],
+    [535, 585],
+    [750, 585],
   ]);
+  addStroke(path, [500, 520], [500, 250]);
   addPolyline(path, [
-    [500, 810],
-    [500, 640],
-    [670, 640],
+    [390, 360],
+    [500, 250],
+    [610, 360],
   ]);
-  const arc = addArc(path, 630, 300, 250, -55, 190);
-  const arrowTip = arc.at(-1);
-  addStroke(path, arrowTip, [arrowTip[0] + 105, arrowTip[1] + 82]);
-  addStroke(path, arrowTip, [arrowTip[0] + 112, arrowTip[1] - 74]);
   return path;
 }
 

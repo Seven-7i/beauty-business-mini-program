@@ -92,6 +92,18 @@ describe("阶段 4 界面韧性契约", () => {
     expect(myMenu).toMatch(/\.my-menu__icon\s*\{[^}]*line-height:\s*0;/s);
   });
 
+  it("文件恢复图标使用清晰的文件内向下箭头，不叠加拥挤的回转圆弧", () => {
+    const generator = readSource("../../scripts/generate-icon-font.mjs");
+    const restoreGlyph = generator.match(
+      /function createFileRestore\(\) \{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(restoreGlyph).toBeDefined();
+    expect(restoreGlyph).not.toContain("addArc");
+    expect(restoreGlyph).toContain("[500, 520]");
+    expect(restoreGlyph).toContain("[500, 250]");
+  });
+
   it("全局页面图标沿用定稿轮廓且不叠加偏离图稿的装饰底座", () => {
     const icon = readSource("./shared/components/AppIcon.vue");
     const overview = readSource(
