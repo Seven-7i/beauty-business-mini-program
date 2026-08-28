@@ -1,5 +1,14 @@
 # 交付流程
 
+## 构建目录一致性
+
+微信开发者工具的项目窗口不会因为命令里传入另一个产物路径就自动切换项目。开始模拟器验证前，先用 `project_list` 读取当前实际导入的 `projectPath`，并让构建命令与该路径一致：
+
+- `app/dist/dev/mp-weixin`：运行 `npm run dev:mp-weixin`，等到首次 `DONE Build complete` 后再执行 `simulator_refresh` 或 `simulator_open_page`。
+- `app/dist/build/mp-weixin`：运行 `npm run build:mp-weixin` 后再刷新或打开目标页。
+
+模拟器的尺寸、截图和交互断言必须来自当前 `projectPath` 对应的最新产物。发布构建和 `auto_preview` 仍使用 `app/dist/build/mp-weixin`；不要用 build 目录已更新来推断 dev 模拟器也已更新。
+
 ## 验证
 
 按风险从紧到宽执行。最终交付必须通过以下命令，除非对应脚本不存在或用户明确缩小验证范围：
@@ -10,15 +19,6 @@ npm run type-check
 npm run test
 npm run build:mp-weixin
 ```
-
-构建后从仓库根目录确认微信产物没有位图文件或引用：
-
-```powershell
-rg -n "data:image|url\([^)]*\.(png|jpe?g|webp)" app/dist/build/mp-weixin -g "*.wxss" -g "*.wxml" -g "*.js"
-rg --files app/dist/build/mp-weixin | rg "\.(png|jpe?g|webp|gif|bmp)$"
-```
-
-以上两条扫描没有匹配时，`rg` 会返回非零退出码，这代表检查通过；只有出现匹配内容才算失败。
 
 运行 `git diff --check`。测试因 Windows 沙箱父目录权限失败时，用同一条、最小范围命令申请提升权限后重试，不把权限失败误报成代码失败。
 
