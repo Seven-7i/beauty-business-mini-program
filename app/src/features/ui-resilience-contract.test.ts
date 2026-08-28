@@ -197,6 +197,7 @@ describe("阶段 4 界面韧性契约", () => {
   });
 
   it("模块管理作为独立系统子页实现定稿且不显示全局底部导航", () => {
+    const viteConfig = readSource("../../vite.config.ts");
     const pages = readSource("../pages.json");
     const index = readSource("../pages/index/index.vue");
     const page = readSource("../pages/module-management/index.vue");
@@ -226,6 +227,8 @@ describe("阶段 4 界面韧性契约", () => {
     expect(codeInput).toContain(':disabled-keyboard="props.disabled"');
     expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*height:\s*80rpx/s);
     expect(codeInput).not.toContain('class="module-code-input__native"');
+    expect(viteConfig).toContain('process.env.UNI_PLATFORM === "mp-weixin"');
+    expect(viteConfig).toContain('minify: isWeixinMiniProgram ? false : "esbuild"');
 
   });
 
