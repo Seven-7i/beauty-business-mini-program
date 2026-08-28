@@ -51,10 +51,16 @@ const entries: readonly {
         :key="entry.id"
         class="business-entry"
         :aria-label="entry.label"
+        hover-class="business-entry--pressed"
+        :hover-start-time="20"
+        :hover-stay-time="80"
         @click="entry.activate"
       >
-        <AppIcon :name="entry.icon" :size="31" />
+        <view class="business-entry__icon" aria-hidden="true">
+          <AppIcon :name="entry.icon" :size="26" />
+        </view>
         <text class="business-entry__label">{{ entry.label }}</text>
+        <AppIcon name="chevron-right" :size="17" color="#968B93" />
       </button>
     </view>
   </section>
@@ -80,44 +86,66 @@ const entries: readonly {
 
 .business-entries__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
 }
 
 .business-entry {
-  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 142rpx;
+  min-height: 116rpx;
   align-items: center;
-  justify-content: center;
-  gap: 16rpx;
-  padding: 14rpx 8rpx;
-  background: transparent;
+  gap: 14rpx;
+  padding: 18rpx 16rpx;
+  border: 2rpx solid #eadfe7;
+  border-radius: 19rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(111, 76, 99, 0.08);
   color: #7f5aa0;
-  flex-direction: column;
+  text-align: left;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.business-entry + .business-entry::before {
-  position: absolute;
-  top: 18rpx;
-  bottom: 18rpx;
-  left: 0;
-  width: 2rpx;
-  background: #eee7ec;
-  content: "";
+.business-entry--pressed {
+  border-color: #d9c3dc;
+  background: #f8f0f7;
+  transform: scale(0.98);
+}
+
+.business-entry__icon {
+  display: flex;
+  width: 64rpx;
+  height: 64rpx;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #eadced;
+  border-radius: 17rpx;
+  background: #f4ebf5;
+  color: #7f5aa0;
+  line-height: 0;
 }
 
 .business-entry__label {
+  min-width: 0;
+  flex: 1;
   color: #383138;
   font-size: 22rpx;
+  font-weight: 600;
   line-height: 1.35;
-  text-align: center;
+  overflow-wrap: anywhere;
 }
 
-@media (max-width: 340px) {
+@media (max-width: 360px) {
   .business-entry {
-    min-height: 132rpx;
-    gap: 12rpx;
+    gap: 10rpx;
+    padding-right: 12rpx;
+    padding-left: 12rpx;
+  }
+
+  .business-entry__icon {
+    width: 58rpx;
+    height: 58rpx;
   }
 
   .business-entry__label {

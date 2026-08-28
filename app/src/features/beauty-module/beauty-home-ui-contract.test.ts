@@ -62,6 +62,20 @@ describe("美容模块首页定稿契约", () => {
     expect(navigation).not.toContain("glyph");
   });
 
+  it("四个业务入口以独立按钮、右箭头和按压态表达可点击性", () => {
+    const entries = readSource("./components/BeautyBusinessEntryGrid.vue");
+
+    expect(entries).toContain('hover-class="business-entry--pressed"');
+    expect(entries).toContain('<AppIcon name="chevron-right"');
+    expect(entries).toMatch(
+      /\.business-entries__grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s,
+    );
+    expect(entries).toMatch(
+      /\.business-entry\s*\{[^}]*(?:border:[^;]+;)[^}]*background:\s*#ffffff;/s,
+    );
+    expect(entries).toMatch(/\.business-entry--pressed\s*\{/);
+  });
+
   it("列表保持实体面板，毛玻璃只用于概览和固定导航", () => {
     const overview = readSource("./components/BeautyHomeOverview.vue");
     const reminders = readSource("./components/BeautyAppointmentReminders.vue");
