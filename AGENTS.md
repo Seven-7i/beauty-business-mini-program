@@ -14,7 +14,7 @@
 
 ### UI delivery
 
-设计或修改页面、维护 `ui图`、同步 UI 文档、进行微信真机预览或交付界面代码时，必须读取并使用项目技能 `skills/zhuangyue-ui-delivery/SKILL.md`。
+设计或修改页面、维护 `ui图`、同步 UI 文档、进行微信真机预览或交付界面代码时，必须读取并使用项目技能 `.agents/skills/zhuangyue-ui-delivery/SKILL.md`。
 
 ### Delivery authorization
 
