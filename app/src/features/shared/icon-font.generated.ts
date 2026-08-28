@@ -10,6 +10,13 @@ export const APP_ICON_GLYPHS = {
   "modules": "\uE008",
   "info": "\uE009",
   "chevron-right": "\uE00A",
+  "appointment": "\uE00B",
+  "customer": "\uE00C",
+  "projects": "\uE00D",
+  "inventory": "\uE00E",
+  "calendar": "\uE00F",
+  "reports": "\uE010",
+  "data": "\uE011",
 } as const;
 
 export type AppIconName = keyof typeof APP_ICON_GLYPHS;

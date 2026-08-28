@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, shallowRef } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
 import BackupRestorePanel from "@/features/backup-restore/components/BackupRestorePanel.vue";
@@ -35,7 +35,7 @@ const exportConfirmations = createPendingExportConfirmationService({
 const { overview, customers, loading, errorMessage, refresh } =
   useBeautyHomeOverview(repository);
 const appointmentCalendar = useAppointmentCalendar(repository);
-const activeTab = ref<BeautyModuleTab>("home");
+const activeTab = shallowRef<BeautyModuleTab>("home");
 const backupService = createBackupRestoreService({
   repository,
   files,
@@ -88,7 +88,7 @@ function refreshActiveTab(): void {
 function selectTab(tab: BeautyModuleTab): void {
   activeTab.value = tab;
   const titles: Record<BeautyModuleTab, string> = {
-    home: "美容",
+    home: "美容管理",
     schedule: "美容 · 日程",
     reports: "美容 · 报表",
     data: "美容 · 数据",
@@ -229,7 +229,7 @@ onShow(refreshActiveTab);
 <style scoped>
 .beauty-page {
   min-height: 100vh;
-  background: #f8f9fb;
+  background: #fbf5f7;
 }
 
 /* 模块数据页要为固定的模块内导航预留滚动尾部，避免最后一个恢复按钮被遮挡。 */

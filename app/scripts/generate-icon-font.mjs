@@ -374,6 +374,106 @@ function createChevronRight() {
   return path;
 }
 
+function addCalendarFrame(path) {
+  addPolyline(
+    path,
+    [
+      [200, 150],
+      [200, 720],
+      [800, 720],
+      [800, 150],
+    ],
+    true,
+  );
+  addStroke(path, [200, 565], [800, 565]);
+  addStroke(path, [350, 790], [350, 660]);
+  addStroke(path, [650, 790], [650, 660]);
+}
+
+function createAppointment() {
+  const path = new GlyphPath();
+  addCalendarFrame(path);
+  addPolyline(path, [
+    [355, 335],
+    [455, 235],
+    [650, 430],
+  ]);
+  return path;
+}
+
+function createCustomer() {
+  return createAccount();
+}
+
+function createProjects() {
+  const path = new GlyphPath();
+  addRing(path, 360, 590, 125);
+  addRing(path, 640, 590, 125);
+  addRing(path, 360, 310, 125);
+  addRing(path, 640, 310, 125);
+  return path;
+}
+
+function createInventory() {
+  return createBackup();
+}
+
+function createCalendar() {
+  const path = new GlyphPath();
+  addCalendarFrame(path);
+  for (const [x, y] of [
+    [350, 430],
+    [500, 430],
+    [650, 430],
+    [350, 275],
+    [500, 275],
+    [650, 275],
+  ]) {
+    addCircle(path, x, y, 34);
+  }
+  return path;
+}
+
+function createReports() {
+  const path = new GlyphPath();
+  addStroke(path, [210, 160], [790, 160]);
+  addPolyline(
+    path,
+    [
+      [270, 160],
+      [270, 390],
+      [390, 390],
+      [390, 160],
+    ],
+    true,
+  );
+  addPolyline(
+    path,
+    [
+      [440, 160],
+      [440, 570],
+      [560, 570],
+      [560, 160],
+    ],
+    true,
+  );
+  addPolyline(
+    path,
+    [
+      [610, 160],
+      [610, 760],
+      [730, 760],
+      [730, 160],
+    ],
+    true,
+  );
+  return path;
+}
+
+function createData() {
+  return createStorage();
+}
+
 const iconDefinitions = [
   ["home", 0xe001, createHome],
   ["account", 0xe002, createAccount],
@@ -385,6 +485,13 @@ const iconDefinitions = [
   ["modules", 0xe008, createModules],
   ["info", 0xe009, createInfo],
   ["chevron-right", 0xe00a, createChevronRight],
+  ["appointment", 0xe00b, createAppointment],
+  ["customer", 0xe00c, createCustomer],
+  ["projects", 0xe00d, createProjects],
+  ["inventory", 0xe00e, createInventory],
+  ["calendar", 0xe00f, createCalendar],
+  ["reports", 0xe010, createReports],
+  ["data", 0xe011, createData],
 ];
 
 const glyphMarkup = iconDefinitions
