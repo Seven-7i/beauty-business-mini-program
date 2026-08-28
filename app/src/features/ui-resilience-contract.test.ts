@@ -209,6 +209,7 @@ describe("阶段 4 界面韧性契约", () => {
     const authorization = readSource(
       "./my-center/components/ModuleAuthorizationForm.vue",
     );
+    const codeInput = readSource("./shared/components/ModuleCodeInput.vue");
 
     expect(pages).toContain('"path": "pages/module-management/index"');
     expect(index).toContain('uni.navigateTo({ url: "/pages/module-management/index" })');
@@ -225,8 +226,12 @@ describe("阶段 4 界面韧性契约", () => {
     expect(authorization).toContain("输入 6 位模块授权码");
     expect(authorization).toContain("第一版只允许增加模块，不提供移除入口");
     expect(authorization).toContain(':maxlength="6"');
+    expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*display:\s*flex;/s);
+    expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*width:\s*550rpx;/s);
+    expect(codeInput).toMatch(/\.module-code-input__cell\s*\{[^}]*flex:\s*1;/s);
+    expect(codeInput).not.toContain("grid-template-columns");
 
-    for (const source of [page, management, modules, authorization]) {
+    for (const source of [page, management, modules, authorization, codeInput]) {
       expect(source).not.toContain("<image");
       expect(source).not.toContain("data:image/");
     }

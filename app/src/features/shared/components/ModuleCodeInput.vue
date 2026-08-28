@@ -82,11 +82,8 @@ function handleInput(event: InputEvent): void {
 <style scoped>
 .module-code-input {
   position: relative;
-  display: grid;
-  width: 100%;
-  max-width: 560rpx;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14rpx;
+  display: flex;
+  width: 550rpx;
 }
 
 .module-code-input__native {
@@ -106,6 +103,7 @@ function handleInput(event: InputEvent): void {
 
 .module-code-input__cell {
   display: flex;
+  flex: 1;
   min-width: 0;
   height: 86rpx;
   box-sizing: border-box;
@@ -116,6 +114,10 @@ function handleInput(event: InputEvent): void {
   background: rgba(255, 255, 255, 0.78);
   box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.74);
   transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.module-code-input__cell + .module-code-input__cell {
+  margin-left: 14rpx;
 }
 
 .module-code-input__cell--active {
@@ -155,12 +157,12 @@ function handleInput(event: InputEvent): void {
 }
 
 @media (max-width: 360px) {
-  .module-code-input {
-    gap: 10rpx;
-  }
-
   .module-code-input__cell {
     height: 78rpx;
+  }
+
+  .module-code-input__cell + .module-code-input__cell {
+    margin-left: 10rpx;
   }
 
   .module-code-input__digit {
