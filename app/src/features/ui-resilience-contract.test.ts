@@ -72,16 +72,23 @@ describe("阶段 4 界面韧性契约", () => {
     expect(inventory).not.toContain(".item-card__name {\n  overflow: hidden");
   });
 
-  it("线条图标使用统一居中画布且图标底座不产生文本行盒偏移", () => {
+  it("语义图标使用本地精简字体且图标底座不产生文本行盒偏移", () => {
     const icon = readSource("./shared/components/AppIcon.vue");
+    const glyphMap = readSource("./shared/icon-font.generated.ts");
+    const font = readFileSync(
+      new URL("../static/fonts/zhuangyue-icons.ttf", import.meta.url),
+    );
     const myMenu = readSource("./my-center/components/MyCenterMenu.vue");
 
-    expect(icon).toContain("app-icon__canvas");
-    expect(icon).toMatch(
-      /\.app-icon__canvas\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
-    );
+    expect(icon).toContain('font-family: "ZhuangYueIcons"');
+    expect(icon).toContain("zhuangyue-icons.ttf");
+    expect(icon).toContain("{{ glyph }}");
+    expect(glyphMap).toContain('"history": "\\uE005"');
+    expect(font.subarray(0, 4).toString("hex")).toBe("00010000");
+    expect(font.byteLength).toBeLessThan(40 * 1024);
     expect(icon).not.toContain("<svg");
-    expect(icon).toMatch(/\.app-icon\s*\{[^}]*display:\s*block;[^}]*line-height:\s*0;/s);
+    expect(icon).not.toContain("https://");
+    expect(icon).toMatch(/\.app-icon\s*\{[^}]*display:\s*inline-flex;[^}]*line-height:\s*0;/s);
     expect(myMenu).toMatch(/\.my-menu__icon\s*\{[^}]*line-height:\s*0;/s);
   });
 
@@ -107,18 +114,27 @@ describe("阶段 4 界面韧性契约", () => {
       "./backup-restore/components/BackupRestoreCandidate.vue",
     );
 
-    expect(icon).toContain("app-icon__glyph--history");
-    expect(icon).toContain("app-icon__glyph--backup");
-    expect(icon).toContain("app-icon__glyph--file-restore");
-    expect(icon).toContain("app-icon__glyph--shield");
+    const glyphMap = readSource("./shared/icon-font.generated.ts");
+    for (const name of [
+      "home",
+      "account",
+      "storage",
+      "backup",
+      "history",
+      "file-restore",
+      "shield",
+      "modules",
+      "info",
+      "chevron-right",
+    ]) {
+      expect(glyphMap).toContain(`"${name}":`);
+    }
     expect(icon).not.toContain("app-icon__history-tail");
     expect(icon).not.toContain("app-icon__history-orbit");
     expect(icon).not.toContain("app-icon__history-arrow");
     expect(icon).not.toContain("border-right: 2rpx dashed");
     expect(icon).not.toContain("border-left-color: transparent");
-    expect(icon).toMatch(
-      /\.app-icon__history-face\s*\{[^}]*border:\s*2rpx solid currentColor;[^}]*border-radius:\s*50%;/s,
-    );
+    expect(icon).not.toContain("app-icon__history-face");
     expect(overview).toContain('<AppIcon name="history" :size="60"');
     expect(overview).not.toContain("export-overview__ring");
 

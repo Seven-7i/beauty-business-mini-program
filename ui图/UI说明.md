@@ -38,8 +38,8 @@
 
 - 产品运行界面不使用 PNG、JPG、WebP、照片、头像、缩略图、纹理图或图片背景，也不使用 `<image>` 承载功能图标。
 - 微信编译产物同样不得包含 `data:image/*` 内嵌位图或指向位图文件的 CSS `url()`；不为单个控件引入带默认图片资源的整套 UI 组件库。
-- 图标通过统一的 `AppIcon` 语义组件封装 CSS 线条图形，调用方只使用 `home`、`account`、`storage`、`backup`、`history`、`file-restore`、`shield`、`modules`、`info`、`chevron-right` 等语义名称；微信小程序端不依赖图片、SVG 或远程字体。
-- `AppIcon` 的所有顶层图形使用同一绝对居中画布，图标底座清除文本行盒高度；不同语义图标不得在调用页面各自修正位置。
+- 图标通过统一的 `AppIcon` 语义组件封装随包内置的精简 Iconfont，调用方只使用 `home`、`account`、`storage`、`backup`、`history`、`file-restore`、`shield`、`modules`、`info`、`chevron-right` 等语义名称；微信小程序端不依赖图片、SVG、远程字体或 Iconfont CDN。
+- `AppIcon` 使用统一 1000 单位字形画布和组件行盒；字体文件、字符映射均由 `scripts/generate-icon-font.mjs` 生成，不同页面不得接触码位或各自修正图标位置。
 - “我的”和系统级数据保护页的线条图标直接落在卡片内容区，不额外叠加彩色圆角底座；最近完整系统导出使用标准单圈时钟，不叠加回环、虚线尾巴或第二层圆环。
 - 六位模块授权码使用项目自有的 `ModuleCodeInput` 纯 Vue/CSS 组件，不依赖带图片默认配置的第三方输入组件。
 - 高斯模糊、环境光、层次和装饰图形只能由 CSS 颜色、透明度、模糊、描边和阴影生成。

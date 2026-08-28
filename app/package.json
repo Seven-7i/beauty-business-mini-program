@@ -34,6 +34,7 @@
     "build:quickapp-webview": "uni build -p quickapp-webview",
     "build:quickapp-webview-huawei": "uni build -p quickapp-webview-huawei",
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union",
+    "generate:icons": "node scripts/generate-icon-font.mjs",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "type-check": "vue-tsc --noEmit"
@@ -68,6 +69,7 @@
     "@vue/runtime-core": "^3.4.21",
     "@vue/tsconfig": "^0.1.3",
     "sass": "1.63.2",
+    "svg2ttf": "^6.1.0",
     "typescript": "^4.9.4",
     "vite": "5.2.8",
     "vitest": "1.6.1",
