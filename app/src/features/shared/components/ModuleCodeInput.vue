@@ -30,7 +30,7 @@ function handleInput(value: string | number): void {
       :model-value="moduleCode"
       :maxlength="props.maxlength"
       mode="box"
-      size="80rpx"
+      size="74rpx"
       space="14rpx"
       font-size="40rpx"
       color="#172033"
