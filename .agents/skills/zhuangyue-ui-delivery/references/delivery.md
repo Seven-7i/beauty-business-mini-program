@@ -9,6 +9,8 @@
 
 模拟器的尺寸、截图和交互断言必须来自当前 `projectPath` 对应的最新产物。发布构建和 `auto_preview` 仍使用 `app/dist/build/mp-weixin`；不要用 build 目录已更新来推断 dev 模拟器也已更新。
 
+同一 AppID 的 dev/build 目录同时导入时，开发者工具可能复用已打开窗口并继续运行旧产物。构建后先用运行时断言核对一个本轮已修改的明确值；若运行值与磁盘产物不一致，关闭旧目录窗口，对目标目录执行 `debug_clear_cache --action cleanCompileCache`，再打开目标页复测。运行值与磁盘一致后才能截图或 `auto_preview`。
+
 ## 验证
 
 按风险从紧到宽执行。最终交付必须通过以下命令，除非对应脚本不存在或用户明确缩小验证范围：
