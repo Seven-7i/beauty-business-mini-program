@@ -225,6 +225,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(authorization).toContain(':maxlength="6"');
     expect(codeInput).toContain("<up-code-input");
     expect(codeInput).toContain(':disabled-keyboard="props.disabled"');
+    expect(codeInput).toContain(':hairline="false"');
     expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*height:\s*80rpx/s);
     expect(codeInput).not.toContain('class="module-code-input__native"');
     expect(viteConfig).toContain('process.env.UNI_PLATFORM === "mp-weixin"');

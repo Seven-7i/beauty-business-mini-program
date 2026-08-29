@@ -36,7 +36,7 @@ function handleInput(value: string | number): void {
       color="#172033"
       border-color="#9AA7BD"
       :bold="true"
-      :hairline="true"
+      :hairline="false"
       :disabled-dot="true"
       :disabled-keyboard="props.disabled"
       :adjust-position="true"
