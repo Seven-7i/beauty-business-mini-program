@@ -1,4 +1,4 @@
 interface:
   display_name: "庄月空间 UI 交付"
-  short_description: "庄月空间页面设计、代码实现、真机预览与自动提交推送闭环"
+  short_description: "庄月空间页面设计、实现、真机验证与确认式交付"
   default_prompt: "Use $zhuangyue-ui-delivery to complete and deliver the requested UI change."
