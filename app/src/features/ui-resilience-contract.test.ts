@@ -61,7 +61,7 @@ describe("阶段 4 界面韧性契约", () => {
   it("高风险动态卡片允许长文本换行且操作按钮保持最小触控高度", () => {
     const inventory = readSource("./inventory/components/InventoryItemList.vue");
     const projects = readSource("./beauty-project/components/BeautyProjectList.vue");
-    const customers = readSource("./customer/components/CustomerList.vue");
+    const customers = readSource("./customer/components/CustomerCard.vue");
     const appointments = readSource("./appointment/components/AppointmentList.vue");
 
     for (const source of [inventory, projects, customers, appointments]) {
@@ -138,6 +138,8 @@ describe("阶段 4 界面韧性契约", () => {
       "modules",
       "info",
       "chevron-right",
+      "search",
+      "add",
     ]) {
       expect(glyphMap).toContain(`"${name}":`);
     }
@@ -167,6 +169,45 @@ describe("阶段 4 界面韧性契约", () => {
     );
     expect(storage).not.toContain('<AppIcon name="storage"');
     expect(storage).not.toContain("storage-card__icon");
+  });
+
+  it("顾客管理页实现 v6 定稿的聚焦列表与详情操作分层", () => {
+    const pages = readSource("../pages.json");
+    const management = readSource(
+      "./customer/components/CustomerManagement.vue",
+    );
+    const list = readSource("./customer/components/CustomerList.vue");
+    const card = readSource("./customer/components/CustomerCard.vue");
+    const detail = readSource("./customer/components/CustomerDetail.vue");
+    const form = readSource("./customer/components/CustomerForm.vue");
+
+    expect(pages).toContain('"navigationBarTitleText": "顾客管理"');
+    expect(pages).toContain('"navigationBarBackgroundColor": "#FFF8FA"');
+    expect(management).not.toContain("customer-management__intro");
+    expect(management).toContain("v-else-if=\"screen === 'form'\"");
+    expect(management).toContain('@add="openCreateCustomer"');
+    expect(management).toContain('title: "放弃本次编辑？"');
+    expect(management).toContain('@dirty-change="updateFormDirty"');
+    expect(management).toContain("wx.enableAlertBeforeUnload");
+    expect(management).toContain("scrollToErrorNotice");
+    expect(list).toContain('<AppIcon name="search"');
+    expect(list).toContain('<AppIcon name="add"');
+    expect(list).toContain("搜索昵称或手机号");
+    expect(list).toContain("仅看停用");
+    expect(list).not.toContain("customer-list__filters");
+    expect(list).not.toContain('@edit="');
+    expect(list).not.toContain('@delete="');
+    expect(card).not.toContain("customer-card__status");
+    expect(card).toContain("customer-card__name--inactive");
+    expect(card).toContain("text-decoration: line-through");
+    expect(detail).toContain("资料操作");
+    expect(detail).toContain("停用顾客");
+    expect(detail).toContain("重新启用");
+    expect(detail).toContain("彻底删除");
+    expect(form).toContain("customer-form__field-error");
+    expect(form).toContain("getCustomerFormErrorField");
+    expect(form).toContain('code === "empty-address"');
+    expect(form).toContain('".address-card--invalid"');
   });
 
   it("系统备份恢复页沿用暖石磨砂层次", () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, type DeepReadonly } from "vue";
 import type { AppointmentV1 } from "@/domain/data-schema";
+import { formatCustomerCurrency } from "../customer-currency";
 
 defineProps<{
   appointments: readonly DeepReadonly<AppointmentV1>[];
@@ -16,10 +17,6 @@ function toggleDetail(appointmentId: string): void {
 function formatSchedule(value: string): string {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-function formatCurrency(cents: number): string {
-  return `¥${(cents / 100).toFixed(2)}`;
 }
 
 function isOverdue(appointment: DeepReadonly<AppointmentV1>): boolean {
@@ -62,10 +59,10 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
           <text class="history-card__time">{{ formatSchedule(appointment.scheduledAt) }}</text>
         </view>
         <text class="history-card__summary">
-          预计 {{ appointment.estimatedDurationMinutes }} 分钟 · 标准金额 {{ formatCurrency(appointment.standardAmountCents) }}
+          预计 {{ appointment.estimatedDurationMinutes }} 分钟 · 标准金额 {{ formatCustomerCurrency(appointment.standardAmountCents) }}
         </text>
         <text v-if="appointment.status === 'completed'" class="history-card__result">
-          成交 {{ formatCurrency(appointment.transactionAmountCents) }} · 完成于 {{ formatSchedule(appointment.completedAt) }}
+          成交 {{ formatCustomerCurrency(appointment.transactionAmountCents) }} · 完成于 {{ formatSchedule(appointment.completedAt) }}
         </text>
         <text v-else-if="appointment.status === 'cancelled'" class="history-card__result">
           取消于 {{ formatSchedule(appointment.cancelledAt) }}{{ appointment.cancelReason ? ` · ${appointment.cancelReason}` : "" }}
@@ -78,7 +75,7 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
           <view class="history-card__section">
             <text class="history-card__section-title">项目明细</text>
             <text v-for="project in appointment.projectSnapshots" :key="project.projectId" class="history-card__line">
-              {{ project.name }} · {{ project.durationMinutes }} 分钟 · {{ formatCurrency(project.standardPriceCents) }}
+              {{ project.name }} · {{ project.durationMinutes }} 分钟 · {{ formatCustomerCurrency(project.standardPriceCents) }}
             </text>
           </view>
           <view class="history-card__section">

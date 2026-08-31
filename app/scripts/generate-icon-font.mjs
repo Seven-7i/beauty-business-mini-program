@@ -474,6 +474,22 @@ function createData() {
   return createStorage();
 }
 
+/** 创建顾客列表搜索框使用的放大镜语义图标。 */
+function createSearch() {
+  const path = new GlyphPath();
+  addRing(path, 430, 540, 220);
+  addStroke(path, [585, 385], [790, 180], 62);
+  return path;
+}
+
+/** 创建新增操作使用的等长加号语义图标。 */
+function createAdd() {
+  const path = new GlyphPath();
+  addStroke(path, [500, 700], [500, 200], 58);
+  addStroke(path, [250, 450], [750, 450], 58);
+  return path;
+}
+
 const iconDefinitions = [
   ["home", 0xe001, createHome],
   ["account", 0xe002, createAccount],
@@ -492,6 +508,8 @@ const iconDefinitions = [
   ["calendar", 0xe00f, createCalendar],
   ["reports", 0xe010, createReports],
   ["data", 0xe011, createData],
+  ["search", 0xe012, createSearch],
+  ["add", 0xe013, createAdd],
 ];
 
 const glyphMarkup = iconDefinitions

@@ -28,6 +28,6 @@ const service = createCustomerManagementService({ repository });
 <style scoped>
 .customer-page {
   min-height: 100vh;
-  background: #f8f9fb;
+  background: #fbf5f7;
 }
 </style>

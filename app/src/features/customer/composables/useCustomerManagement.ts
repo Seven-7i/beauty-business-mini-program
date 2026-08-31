@@ -6,6 +6,10 @@ import type {
   UpdateCustomerInput,
 } from "@/services/customer-management-service";
 import {
+  CustomerRuleError,
+  type CustomerRuleErrorCode,
+} from "@/services/customer-service";
+import {
   deriveCustomerBusinessSummary,
   type CustomerBusinessSummary,
 } from "@/services/statistics-service";
@@ -18,6 +22,7 @@ export function useCustomerManagement(service: CustomerManagementService) {
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
   const errorKind = shallowRef<"" | "read" | "operation">("");
+  const errorCode = shallowRef<CustomerRuleErrorCode | "">("");
   const customersByName = computed(() =>
     [...customers.value].sort((left, right) => {
       if (left.status !== right.status) {
@@ -36,10 +41,10 @@ export function useCustomerManagement(service: CustomerManagementService) {
       ),
   );
 
+  /** 重新读取顾客和预约快照，并清除上一次错误。 */
   async function refresh(): Promise<void> {
     loading.value = true;
-    errorMessage.value = "";
-    errorKind.value = "";
+    clearError();
     try {
       const data = await service.readData();
       customers.value = data.customers;
@@ -52,13 +57,20 @@ export function useCustomerManagement(service: CustomerManagementService) {
     }
   }
 
+  /** 清除已展示的读取或业务操作错误。 */
+  function clearError(): void {
+    errorMessage.value = "";
+    errorKind.value = "";
+    errorCode.value = "";
+  }
+
+  /** 统一保护写操作，并保留可供表单定位的领域错误码。 */
   async function runMutation(
     operation: () => Promise<unknown>,
     fallbackMessage: string,
   ): Promise<boolean> {
     submitting.value = true;
-    errorMessage.value = "";
-    errorKind.value = "";
+    clearError();
     try {
       await operation();
       await refresh();
@@ -67,10 +79,47 @@ export function useCustomerManagement(service: CustomerManagementService) {
       errorKind.value = "operation";
       errorMessage.value =
         error instanceof Error ? error.message : fallbackMessage;
+      errorCode.value =
+        error instanceof CustomerRuleError ? error.code : "";
       return false;
     } finally {
       submitting.value = false;
     }
+  }
+
+  /** 创建顾客并在成功后刷新页面快照。 */
+  function createCustomer(input: CreateCustomerInput): Promise<boolean> {
+    return runMutation(
+      () => service.createCustomer(input),
+      "顾客资料保存失败，请稍后重试",
+    );
+  }
+
+  /** 更新现有顾客并在成功后刷新页面快照。 */
+  function updateCustomer(input: UpdateCustomerInput): Promise<boolean> {
+    return runMutation(
+      () => service.updateCustomer(input),
+      "顾客资料保存失败，请稍后重试",
+    );
+  }
+
+  /** 切换顾客状态并在成功后刷新页面快照。 */
+  function setCustomerStatus(
+    customerId: string,
+    status: CustomerV1["status"],
+  ): Promise<boolean> {
+    return runMutation(
+      () => service.setCustomerStatus(customerId, status),
+      "顾客状态保存失败，请稍后重试",
+    );
+  }
+
+  /** 删除未关联预约的顾客并在成功后刷新页面快照。 */
+  function deleteCustomer(customerId: string): Promise<boolean> {
+    return runMutation(
+      () => service.deleteCustomer(customerId),
+      "顾客删除失败，请稍后重试",
+    );
   }
 
   return {
@@ -82,29 +131,12 @@ export function useCustomerManagement(service: CustomerManagementService) {
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
     errorKind: readonly(errorKind),
+    errorCode: readonly(errorCode),
+    clearError,
     refresh,
-    createCustomer: (input: CreateCustomerInput) =>
-      runMutation(
-        () => service.createCustomer(input),
-        "顾客资料保存失败，请稍后重试",
-      ),
-    updateCustomer: (input: UpdateCustomerInput) =>
-      runMutation(
-        () => service.updateCustomer(input),
-        "顾客资料保存失败，请稍后重试",
-      ),
-    setCustomerStatus: (
-      customerId: string,
-      status: CustomerV1["status"],
-    ) =>
-      runMutation(
-        () => service.setCustomerStatus(customerId, status),
-        "顾客状态保存失败，请稍后重试",
-      ),
-    deleteCustomer: (customerId: string) =>
-      runMutation(
-        () => service.deleteCustomer(customerId),
-        "顾客删除失败，请稍后重试",
-      ),
+    createCustomer,
+    updateCustomer,
+    setCustomerStatus,
+    deleteCustomer,
   };
 }

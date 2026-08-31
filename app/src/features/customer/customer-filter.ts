@@ -1,17 +1,23 @@
 import type { CustomerV1 } from "@/domain/data-schema";
 
-export type CustomerFilter = "all" | CustomerV1["status"];
-
-/** 顾客页面实际使用的昵称/手机号与状态筛选。 */
-export function filterCustomers(
-  customers: readonly CustomerV1[],
+/**
+ * 顾客列表按确认稿切换互斥的启用/停用范围，并在当前范围内匹配昵称或手机号。
+ * 当前由 CustomerList 调用；返回新数组，不改变 composable 提供的原始排序。
+ */
+export function filterCustomers<
+  TCustomer extends Pick<CustomerV1, "nickname" | "phone" | "status">,
+>(
+  customers: readonly TCustomer[],
   keyword: string,
-  filter: CustomerFilter,
-): CustomerV1[] {
+  inactiveOnly: boolean,
+): TCustomer[] {
   const query = keyword.trim();
+  const visibleStatus: CustomerV1["status"] = inactiveOnly
+    ? "inactive"
+    : "active";
   return customers.filter(
     (customer) =>
-      (filter === "all" || customer.status === filter) &&
+      customer.status === visibleStatus &&
       (!query ||
         customer.nickname.includes(query) ||
         customer.phone.includes(query)),

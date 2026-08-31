@@ -251,7 +251,7 @@ describe("阶段 4 目标规模容量与性能", () => {
     expect(readDurationMs).toBeLessThan(1_000);
 
     const searchStartedAt = performance.now();
-    const found = filterCustomers(persisted.customers, "顾客200", "all");
+    const found = filterCustomers(persisted.customers, "顾客200", false);
     const searchDurationMs = performance.now() - searchStartedAt;
     expect(found).toHaveLength(1);
     expect(searchDurationMs).toBeLessThan(300);

@@ -60,7 +60,7 @@
 			"path": "pages/customer/index",
 			"style": {
 				"navigationBarTitleText": "顾客管理",
-				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarBackgroundColor": "#FFF8FA",
 				"navigationBarTextStyle": "black"
 			}
 		},

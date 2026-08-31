@@ -1,0 +1,51 @@
+import type { CustomerRuleErrorCode } from "@/services/customer-service";
+
+/** 顾客管理页的三个互斥内容区。 */
+export type CustomerScreen = "list" | "form" | "detail";
+
+/** 可承接业务校验错误的顾客表单区域。 */
+export type CustomerFormField = "nickname" | "phone" | "address";
+
+/** 把稳定的领域错误码映射到应就近提示并定位的表单区域。 */
+export function getCustomerFormErrorField(
+  code: CustomerRuleErrorCode | "",
+): CustomerFormField | undefined {
+  if (code === "empty-nickname" || code === "duplicate-nickname") {
+    return "nickname";
+  }
+  if (code === "invalid-phone" || code === "duplicate-phone") {
+    return "phone";
+  }
+  if (code === "empty-address" || code === "duplicate-address-id") {
+    return "address";
+  }
+  return undefined;
+}
+
+/** 有未保存改动时，离开表单必须先取得顾客的明确确认。 */
+export function shouldConfirmCustomerDraftDiscard(dirty: boolean): boolean {
+  return dirty;
+}
+
+/** 请求离开顾客表单；脏草稿由调用方取得确认后再执行离开动作。 */
+export function requestCustomerFormExit(options: {
+  /** 当前草稿是否偏离初始值。 */
+  dirty: boolean;
+  /** 打开平台确认框，并在用户确认时调用传入动作。 */
+  confirmDiscard: (discard: () => void) => void;
+  /** 真正清理草稿并切换页面内容的动作。 */
+  exit: () => void;
+}): void {
+  if (!shouldConfirmCustomerDraftDiscard(options.dirty)) {
+    options.exit();
+    return;
+  }
+  options.confirmDiscard(options.exit);
+}
+
+/** 新增结束回列表，编辑结束回到原顾客详情。 */
+export function getCustomerScreenAfterFormExit(
+  editingCustomerId: string | undefined,
+): Exclude<CustomerScreen, "form"> {
+  return editingCustomerId ? "detail" : "list";
+}
