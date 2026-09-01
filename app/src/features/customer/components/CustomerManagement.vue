@@ -2,7 +2,6 @@
 import {
   computed,
   nextTick,
-  onBeforeUnmount,
   onMounted,
   ref,
   shallowRef,
@@ -17,29 +16,24 @@ import type {
 import { deriveCustomerAppointmentHistory } from "../customer-appointment-history";
 import {
   getCustomerFormErrorField,
-  getCustomerScreenAfterFormExit,
-  requestCustomerFormExit,
   type CustomerScreen,
 } from "../customer-form-state";
+import { useCustomerDraftProtection } from "../composables/useCustomerDraftProtection";
 import { useCustomerManagement } from "../composables/useCustomerManagement";
 import CustomerDetail from "./CustomerDetail.vue";
 import CustomerForm from "./CustomerForm.vue";
 import CustomerList from "./CustomerList.vue";
 
-/** 当前页面用到的微信原生返回询问最小接口。 */
-interface WechatBeforeUnloadApi {
-  /** 开启原生导航返回询问。 */
-  enableAlertBeforeUnload(options: { message: string }): void;
-  /** 关闭原生导航返回询问。 */
-  disableAlertBeforeUnload(): void;
-}
-
-declare const wx: WechatBeforeUnloadApi | undefined;
-
 /** 顾客管理容器的业务用例依赖。 */
 interface CustomerManagementProps {
   /** 页面可调用的顾客管理窄用例。 */
   service: CustomerManagementService;
+}
+
+/** 顾客列表路由在独立新增页返回后可调用的刷新契约。 */
+interface CustomerManagementExpose {
+  /** 重新读取顾客与预约快照，让新增结果立即进入列表。 */
+  refresh(): Promise<void>;
 }
 
 const props = defineProps<CustomerManagementProps>();
@@ -54,13 +48,13 @@ const {
   errorCode,
   clearError,
   refresh,
-  createCustomer,
   updateCustomer,
   setCustomerStatus,
   deleteCustomer,
 } = useCustomerManagement(props.service);
+const { updateDirty, resetDirty, requestExit } =
+  useCustomerDraftProtection();
 const screen = shallowRef<CustomerScreen>("list");
-const formDirty = shallowRef(false);
 const selectedCustomer = shallowRef<DeepReadonly<CustomerV1>>();
 const detailCustomerId = shallowRef("");
 const customerForm = ref<InstanceType<typeof CustomerForm> | null>(null);
@@ -100,53 +94,39 @@ async function scrollToErrorNotice(): Promise<void> {
   });
 }
 
-/** 跟随草稿状态启停微信原生返回询问，覆盖导航栏返回和 Android 返回键。 */
-function syncNativeBackProtection(dirty: boolean): void {
-  if (typeof wx === "undefined") {
-    return;
-  }
-  if (dirty) {
-    wx.enableAlertBeforeUnload({ message: "放弃本次编辑？" });
-    return;
-  }
-  wx.disableAlertBeforeUnload();
-}
-
-/** 保存新增或编辑资料，并回到发起操作前的列表或详情。 */
+/** 保存详情中的顾客编辑资料，并回到当前顾客详情。 */
 async function handleSubmit(input: CreateCustomerInput): Promise<void> {
   const editingCustomerId = selectedCustomer.value?.id;
-  const saved = editingCustomerId
-    ? await updateCustomer({ customerId: editingCustomerId, ...input })
-    : await createCustomer(input);
+  if (!editingCustomerId) {
+    return;
+  }
+  const saved = await updateCustomer({
+    customerId: editingCustomerId,
+    ...input,
+  });
   if (!saved) {
     if (!formErrorField.value) {
       await scrollToErrorNotice();
     }
     return;
   }
-  formDirty.value = false;
-  syncNativeBackProtection(false);
+  resetDirty();
   selectedCustomer.value = undefined;
   customerForm.value?.reset();
-  screen.value = getCustomerScreenAfterFormExit(editingCustomerId);
+  screen.value = "detail";
   uni.showToast({ title: "顾客资料已保存", icon: "success" });
 }
 
-/** 从列表进入空白新增表单。 */
+/** 从顾客列表进入独立新增顾客页面。 */
 function openCreateCustomer(): void {
   clearError();
-  formDirty.value = false;
-  selectedCustomer.value = undefined;
-  detailCustomerId.value = "";
-  customerForm.value?.reset();
-  screen.value = "form";
-  uni.pageScrollTo({ scrollTop: 0, duration: 180 });
+  uni.navigateTo({ url: "/pages/customer-create/index" });
 }
 
 /** 从详情进入当前顾客编辑表单。 */
 function editCustomer(customer: DeepReadonly<CustomerV1>): void {
   clearError();
-  formDirty.value = false;
+  resetDirty();
   detailCustomerId.value = customer.id;
   selectedCustomer.value = customer;
   screen.value = "form";
@@ -170,45 +150,23 @@ function closeCustomerDetail(): void {
   screen.value = "list";
 }
 
-/** 完成已获准的表单退出；编辑返回详情，新增返回列表。 */
+/** 完成已获准的编辑表单退出并返回当前顾客详情。 */
 function completeFormCancel(): void {
-  const editingCustomerId = selectedCustomer.value?.id;
   clearError();
-  formDirty.value = false;
-  syncNativeBackProtection(false);
+  resetDirty();
   selectedCustomer.value = undefined;
   customerForm.value?.reset();
-  screen.value = getCustomerScreenAfterFormExit(editingCustomerId);
+  screen.value = "detail";
 }
 
 /** 无改动直接退出，有未保存改动时先确认是否放弃。 */
 function cancelForm(): void {
-  requestCustomerFormExit({
-    dirty: formDirty.value,
-    exit: completeFormCancel,
-    confirmDiscard(discard) {
-      uni.showModal({
-        title: "放弃本次编辑？",
-        content: "尚未保存的顾客资料将丢失。",
-        confirmText: "放弃",
-        confirmColor: "#A94442",
-        success(result) {
-          if (result.confirm) {
-            discard();
-          }
-        },
-        fail() {
-          uni.showToast({ title: "确认框打开失败", icon: "none" });
-        },
-      });
-    },
-  });
+  requestExit(completeFormCancel);
 }
 
 /** 记录表单草稿是否偏离初始值，作为退出保护依据。 */
 function updateFormDirty(dirty: boolean): void {
-  formDirty.value = dirty;
-  syncNativeBackProtection(dirty);
+  updateDirty(dirty);
 }
 
 /** 经明确确认后切换顾客启用状态。 */
@@ -272,7 +230,9 @@ function confirmDelete(customer: DeepReadonly<CustomerV1>): void {
 }
 
 onMounted(refresh);
-onBeforeUnmount(() => syncNativeBackProtection(false));
+
+const exposed: CustomerManagementExpose = { refresh };
+defineExpose(exposed);
 </script>
 
 <template>

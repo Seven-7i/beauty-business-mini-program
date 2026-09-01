@@ -65,6 +65,14 @@
 			}
 		},
 		{
+			"path": "pages/customer-create/index",
+			"style": {
+				"navigationBarTitleText": "新增顾客",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/appointment/index",
 			"style": {
 				"navigationBarTitleText": "预约",

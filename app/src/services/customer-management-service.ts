@@ -158,3 +158,9 @@ export function createCustomerManagementService(
 export type CustomerManagementService = ReturnType<
   typeof createCustomerManagementService
 >;
+
+/** 独立新增顾客页可调用的最窄服务契约，只允许创建一位顾客。 */
+export type CustomerCreateService = Pick<
+  CustomerManagementService,
+  "createCustomer"
+>;

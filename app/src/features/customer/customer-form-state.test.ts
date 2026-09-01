@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getCustomerFormErrorField,
   getCustomerScreenAfterFormExit,
+  prepareCustomerAddressesForSubmit,
   requestCustomerFormExit,
+  shouldConfirmCustomerAddressRemoval,
   shouldConfirmCustomerDraftDiscard,
 } from "./customer-form-state";
 
@@ -52,5 +54,51 @@ describe("顾客表单状态", () => {
     ["referenced-customer", undefined],
   ] as const)("把 %s 定位到 %s", (code, field) => {
     expect(getCustomerFormErrorField(code)).toBe(field);
+  });
+
+  it("独立新增只忽略全空占位，仍保留只填备注的无效地址供领域校验", () => {
+    expect(
+      prepareCustomerAddressesForSubmit(
+        [
+          { id: "blank", addressText: "", note: "" },
+          { id: "invalid", addressText: "", note: "请电话联系" },
+          { id: "valid", addressText: "建设路 8 号", note: "" },
+        ],
+        true,
+      ),
+    ).toEqual([
+      { id: "invalid", addressText: "", note: "请电话联系" },
+      { id: "valid", addressText: "建设路 8 号", note: "" },
+    ]);
+  });
+
+  it("内嵌编辑保留被清空的已有地址，不允许静默当作删除", () => {
+    expect(
+      prepareCustomerAddressesForSubmit(
+        [{ id: "existing", addressText: "", note: "" }],
+        false,
+      ),
+    ).toEqual([{ id: "existing", addressText: "", note: "" }]);
+  });
+
+  it("只有地址正文或备注存在内容时才要求二次确认移除", () => {
+    expect(
+      shouldConfirmCustomerAddressRemoval({ addressText: "", note: "" }),
+    ).toBe(false);
+    expect(
+      shouldConfirmCustomerAddressRemoval({ addressText: "  ", note: "\n" }),
+    ).toBe(false);
+    expect(
+      shouldConfirmCustomerAddressRemoval({
+        addressText: "建设路 8 号",
+        note: "",
+      }),
+    ).toBe(true);
+    expect(
+      shouldConfirmCustomerAddressRemoval({
+        addressText: "",
+        note: "到东门联系",
+      }),
+    ).toBe(true);
   });
 });

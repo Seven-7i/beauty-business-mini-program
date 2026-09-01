@@ -180,16 +180,35 @@ describe("阶段 4 界面韧性契约", () => {
     const card = readSource("./customer/components/CustomerCard.vue");
     const detail = readSource("./customer/components/CustomerDetail.vue");
     const form = readSource("./customer/components/CustomerForm.vue");
+    const creation = readSource("./customer/components/CustomerCreate.vue");
+    const draftProtection = readSource(
+      "./customer/composables/useCustomerDraftProtection.ts",
+    );
+    const customerPage = readSource("../pages/customer/index.vue");
+    const customerCreatePage = readSource("../pages/customer-create/index.vue");
 
     expect(pages).toContain('"navigationBarTitleText": "顾客管理"');
     expect(pages).toContain('"navigationBarBackgroundColor": "#FFF8FA"');
+    expect(pages).toContain('"path": "pages/customer-create/index"');
+    expect(pages).toContain('"navigationBarTitleText": "新增顾客"');
     expect(management).not.toContain("customer-management__intro");
     expect(management).toContain("v-else-if=\"screen === 'form'\"");
     expect(management).toContain('@add="openCreateCustomer"');
-    expect(management).toContain('title: "放弃本次编辑？"');
+    expect(management).toContain(
+      'uni.navigateTo({ url: "/pages/customer-create/index" })',
+    );
     expect(management).toContain('@dirty-change="updateFormDirty"');
-    expect(management).toContain("wx.enableAlertBeforeUnload");
     expect(management).toContain("scrollToErrorNotice");
+    expect(customerPage).toContain("onShow(refreshCustomerManagement)");
+    expect(customerPage).toContain('ref="customerManagement"');
+    expect(customerCreatePage).toContain("<CustomerCreate");
+    expect(creation).toContain("<CustomerForm");
+    expect(creation).toContain("standalone");
+    expect(creation).toContain("completeCustomerCreateNavigation()");
+    expect(draftProtection).toContain('title: "放弃本次编辑？"');
+    expect(draftProtection).toContain(
+      "runtime.wechat.enableAlertBeforeUnload",
+    );
     expect(list).toContain('<AppIcon name="search"');
     expect(list).toContain('<AppIcon name="add"');
     expect(list).toContain("搜索昵称或手机号");
@@ -208,6 +227,15 @@ describe("阶段 4 界面韧性契约", () => {
     expect(form).toContain("getCustomerFormErrorField");
     expect(form).toContain('code === "empty-address"');
     expect(form).toContain('".address-card--invalid"');
+    expect(form).toContain("customer-form--standalone");
+    expect(form).toContain("请输入中国大陆 11 位手机号");
+    expect(form).toContain("保存顾客");
+    expect(form).toContain("form.addresses.unshift");
+    expect(form).toContain("shouldConfirmCustomerAddressRemoval");
+    expect(form).toContain('title: "移除服务地址"');
+    expect(form).toMatch(
+      /\.customer-form--standalone \.address-editor__empty\s*\{[^}]*padding:\s*22rpx 0;[^}]*text-align:\s*center;/s,
+    );
   });
 
   it("系统备份恢复页沿用暖石磨砂层次", () => {

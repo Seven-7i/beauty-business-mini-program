@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { onShow } from "@dcloudio/uni-app";
-import { ref } from "vue";
 import { APP_VERSION } from "@/config/app";
-import CustomerManagement from "@/features/customer/components/CustomerManagement.vue";
-import { refreshCustomerListOnShow } from "@/features/customer/customer-create-navigation";
+import CustomerCreate from "@/features/customer/components/CustomerCreate.vue";
 import {
   createUniStorageAdapter,
   type UniStorageRuntime,
@@ -12,7 +9,7 @@ import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/ba
 import { createApplicationDataRepository } from "@/repositories/application-data-repository";
 import { createCustomerManagementService } from "@/services/customer-management-service";
 
-// 页面是组合根：微信依赖在此注入，顾客组件和用例不直接访问全局 API。
+// 独立路由只组合微信基础设施和新增用例，表单状态留在聚焦组件中。
 const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
 const repository = createApplicationDataRepository({
   storage,
@@ -20,26 +17,16 @@ const repository = createApplicationDataRepository({
   appVersion: APP_VERSION,
 });
 const service = createCustomerManagementService({ repository });
-const customerManagement = ref<InstanceType<typeof CustomerManagement> | null>(
-  null,
-);
-
-/** 独立新增页返回后重新读取列表，让新顾客立即出现在当前页面。 */
-function refreshCustomerManagement(): void {
-  void refreshCustomerListOnShow(customerManagement.value ?? undefined);
-}
-
-onShow(refreshCustomerManagement);
 </script>
 
 <template>
-  <view class="customer-page">
-    <CustomerManagement ref="customerManagement" :service="service" />
+  <view class="customer-create-page">
+    <CustomerCreate :service="service" />
   </view>
 </template>
 
 <style scoped>
-.customer-page {
+.customer-create-page {
   min-height: 100vh;
   background: #fbf5f7;
 }

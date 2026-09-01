@@ -1,10 +1,50 @@
-import type { CustomerRuleErrorCode } from "@/services/customer-service";
+import type {
+  CustomerAddressInput,
+  CustomerRuleErrorCode,
+} from "@/services/customer-service";
 
 /** 顾客管理页的三个互斥内容区。 */
 export type CustomerScreen = "list" | "form" | "detail";
 
 /** 可承接业务校验错误的顾客表单区域。 */
 export type CustomerFormField = "nickname" | "phone" | "address";
+
+/** 顾客表单提交前可读取的服务地址草稿。 */
+export interface CustomerAddressDraftInput {
+  /** 顾客内部稳定地址标识。 */
+  id: string;
+  /** 尚未规范化的地址正文。 */
+  addressText: string;
+  /** 尚未规范化的地址备注。 */
+  note: string;
+}
+
+/**
+ * 生成提交给顾客服务的地址列表。
+ * 独立新增页只忽略它自动提供的全空占位；内嵌编辑必须保留空行交给领域校验，避免静默删除地址。
+ */
+export function prepareCustomerAddressesForSubmit(
+  addresses: readonly CustomerAddressDraftInput[],
+  omitBlankPlaceholder: boolean,
+): CustomerAddressInput[] {
+  const submittedAddresses = omitBlankPlaceholder
+    ? addresses.filter(
+        (address) => address.addressText.trim() || address.note.trim(),
+      )
+    : addresses;
+  return submittedAddresses.map((address) => ({
+    id: address.id,
+    addressText: address.addressText,
+    note: address.note,
+  }));
+}
+
+/** 地址正文或备注已有实际内容时，移除前需要取得用户确认。 */
+export function shouldConfirmCustomerAddressRemoval(
+  address: Pick<CustomerAddressDraftInput, "addressText" | "note">,
+): boolean {
+  return Boolean(address.addressText.trim() || address.note.trim());
+}
 
 /** 把稳定的领域错误码映射到应就近提示并定位的表单区域。 */
 export function getCustomerFormErrorField(

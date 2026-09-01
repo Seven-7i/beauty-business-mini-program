@@ -18,7 +18,7 @@ interface CustomerListProps {
 
 /** 顾客列表向页面编排层暴露的操作。 */
 interface CustomerListEmits {
-  /** 请求进入新增顾客表单。 */
+  /** 请求进入独立新增顾客页面。 */
   add: [];
   /** 请求查看指定顾客详情。 */
   view: [customer: DeepReadonly<CustomerV1>];
