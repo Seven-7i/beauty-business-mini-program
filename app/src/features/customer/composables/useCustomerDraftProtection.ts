@@ -60,7 +60,7 @@ export function createCustomerDraftProtectionController(
 
 /**
  * 统一管理顾客表单的脏草稿返回保护和放弃确认。
- * 当前由 `CustomerCreate` 独立新增页和 `CustomerManagement` 内嵌编辑流程调用。
+ * 当前由 `CustomerCreate` 独立新增页和 `CustomerDetailPage` 独立编辑流程调用。
  */
 export function useCustomerDraftProtection() {
   const protection = createCustomerDraftProtectionController({

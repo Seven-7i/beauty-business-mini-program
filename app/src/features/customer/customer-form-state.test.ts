@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   getCustomerFormErrorField,
-  getCustomerScreenAfterFormExit,
   prepareCustomerAddressesForSubmit,
   requestCustomerFormExit,
   shouldConfirmCustomerAddressRemoval,
@@ -9,11 +8,6 @@ import {
 } from "./customer-form-state";
 
 describe("顾客表单状态", () => {
-  it("新增结束回列表，编辑结束回详情", () => {
-    expect(getCustomerScreenAfterFormExit(undefined)).toBe("list");
-    expect(getCustomerScreenAfterFormExit("customer-1")).toBe("detail");
-  });
-
   it("只在存在未保存改动时要求确认放弃", () => {
     expect(shouldConfirmCustomerDraftDiscard(false)).toBe(false);
     expect(shouldConfirmCustomerDraftDiscard(true)).toBe(true);

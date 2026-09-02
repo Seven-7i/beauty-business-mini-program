@@ -39,11 +39,7 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
 </script>
 
 <template>
-  <view class="customer-history">
-    <view class="customer-history__heading">
-      <text class="customer-history__title">历史预约</text>
-      <text class="customer-history__count">{{ appointments.length }} 条</text>
-    </view>
+  <view class="customer-history" aria-label="顾客预约历史">
     <view v-if="!appointments.length" class="customer-history__empty" role="status">
       这位顾客还没有预约记录。
     </view>
@@ -100,27 +96,24 @@ function statusLabel(appointment: DeepReadonly<AppointmentV1>): string {
 </template>
 
 <style scoped>
-.customer-history { margin-top: 28rpx; }
-.customer-history__heading, .history-card__heading, .history-card__identity { display: flex; align-items: center; }
-.customer-history__heading { justify-content: space-between; gap: 16rpx; }
-.customer-history__title { color: #263248; font-size: 28rpx; font-weight: 700; }
-.customer-history__count { flex: none; color: #7a8597; font-size: 20rpx; }
-.customer-history__empty { margin-top: 16rpx; padding: 30rpx 20rpx; border: 2rpx dashed #d5dbe4; border-radius: 14rpx; color: #7c8798; font-size: 22rpx; text-align: center; }
-.history-card { margin-top: 16rpx; padding: 22rpx; border: 2rpx solid #e0e5ec; border-radius: 15rpx; background: #fff; }
+.history-card__heading, .history-card__identity { display: flex; align-items: center; }
+.customer-history__empty { padding: 36rpx 22rpx; border: 2rpx dashed #ded3dc; border-radius: 20rpx; background: rgba(255, 253, 253, 0.74); color: #837a81; font-size: 22rpx; line-height: 1.55; text-align: center; }
+.history-card { margin-top: 16rpx; padding: 24rpx; border: 2rpx solid rgba(136, 103, 126, 0.1); border-radius: 20rpx; background: rgba(255, 255, 255, 0.96); box-shadow: 0 10rpx 28rpx rgba(111, 76, 99, 0.05); }
+.history-card:first-child { margin-top: 0; }
 .history-card__heading { align-items: flex-start; justify-content: space-between; gap: 14rpx; flex-wrap: wrap; }
 .history-card__identity { min-width: 0; flex: 1; gap: 10rpx; flex-wrap: wrap; }
-.history-card__projects { min-width: 0; flex: 1; color: #243047; font-size: 25rpx; font-weight: 700; overflow-wrap: anywhere; }
+.history-card__projects { min-width: 0; flex: 1; color: #302a2f; font-size: 25rpx; font-weight: 700; overflow-wrap: anywhere; }
 .history-card__status { flex: none; padding: 5rpx 10rpx; border-radius: 9rpx; font-size: 18rpx; }
-.history-card__status--pending { background: #e8eefb; color: #31549e; }
+.history-card__status--pending { background: #f0eafa; color: #6337ae; }
 .history-card__status--overdue { background: #fae9e7; color: #984943; }
 .history-card__status--completed { background: #e5f2ea; color: #34704d; }
 .history-card__status--cancelled { background: #eceef2; color: #737d8d; }
-.history-card__time { flex: none; color: #31549e; font-size: 21rpx; font-weight: 600; }
-.history-card__summary, .history-card__result { display: block; margin-top: 10rpx; color: #6f7b8f; font-size: 21rpx; line-height: 1.55; overflow-wrap: anywhere; }
-.history-card__result { color: #4f607a; }
-.history-card__toggle { min-height: 68rpx; margin-top: 16rpx; padding: 12rpx 22rpx; border: 2rpx solid #cad6ef; border-radius: 10rpx; background: #f4f7fc; color: #31549e; font-size: 21rpx; line-height: 1.35; }
+.history-card__time { flex: none; color: #6337ae; font-size: 21rpx; font-weight: 600; }
+.history-card__summary, .history-card__result { display: block; margin-top: 10rpx; color: #746d72; font-size: 21rpx; line-height: 1.55; overflow-wrap: anywhere; }
+.history-card__result { color: #554d53; }
+.history-card__toggle { min-height: 68rpx; margin-top: 16rpx; padding: 12rpx 22rpx; border: 2rpx solid #d9cce6; border-radius: 11rpx; background: #faf7fc; color: #6337ae; font-size: 21rpx; line-height: 1.35; }
 .history-card__detail { margin-top: 16rpx; padding-top: 2rpx; border-top: 2rpx solid #edf0f4; }
 .history-card__section { display: flex; margin-top: 15rpx; flex-direction: column; gap: 6rpx; }
-.history-card__section-title { color: #42516b; font-size: 21rpx; font-weight: 700; }
-.history-card__line { color: #6d788b; font-size: 20rpx; line-height: 1.55; overflow-wrap: anywhere; }
+.history-card__section-title { color: #4f474d; font-size: 21rpx; font-weight: 700; }
+.history-card__line { color: #746d72; font-size: 20rpx; line-height: 1.55; overflow-wrap: anywhere; }
 </style>

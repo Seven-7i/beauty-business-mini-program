@@ -73,6 +73,14 @@
 			}
 		},
 		{
+			"path": "pages/customer-detail/index",
+			"style": {
+				"navigationBarTitleText": "顾客详情",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/appointment/index",
 			"style": {
 				"navigationBarTitleText": "预约",

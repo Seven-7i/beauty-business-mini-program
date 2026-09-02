@@ -3,9 +3,6 @@ import type {
   CustomerRuleErrorCode,
 } from "@/services/customer-service";
 
-/** 顾客管理页的三个互斥内容区。 */
-export type CustomerScreen = "list" | "form" | "detail";
-
 /** 可承接业务校验错误的顾客表单区域。 */
 export type CustomerFormField = "nickname" | "phone" | "address";
 
@@ -81,11 +78,4 @@ export function requestCustomerFormExit(options: {
     return;
   }
   options.confirmDiscard(options.exit);
-}
-
-/** 新增结束回列表，编辑结束回到原顾客详情。 */
-export function getCustomerScreenAfterFormExit(
-  editingCustomerId: string | undefined,
-): Exclude<CustomerScreen, "form"> {
-  return editingCustomerId ? "detail" : "list";
 }

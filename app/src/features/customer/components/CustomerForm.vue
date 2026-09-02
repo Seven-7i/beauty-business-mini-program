@@ -18,7 +18,7 @@ import {
 
 /**
  * 顾客表单的只读状态输入。
- * 当前由 `CustomerCreate` 用于独立新增，并由 `CustomerManagement` 用于详情内编辑。
+ * 当前由 `CustomerCreate` 用于独立新增，并由 `CustomerDetailPage` 用于详情内编辑。
  */
 interface CustomerFormProps {
   /** 保存进行中时禁止重复提交和更改地址结构。 */
@@ -35,7 +35,7 @@ interface CustomerFormProps {
 
 /**
  * 顾客表单向外层容器提交的用户意图。
- * `CustomerCreate` 处理新增，`CustomerManagement` 处理现有顾客编辑。
+ * `CustomerCreate` 处理新增，`CustomerDetailPage` 处理现有顾客编辑。
  */
 interface CustomerFormEmits {
   /** 提交已保留原始输入的顾客草稿。 */

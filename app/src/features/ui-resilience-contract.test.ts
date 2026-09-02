@@ -46,6 +46,7 @@ describe("阶段 4 界面韧性契约", () => {
       "./inventory/components/InventoryManagement.vue",
       "./beauty-project/components/BeautyProjectManagement.vue",
       "./customer/components/CustomerManagement.vue",
+      "./customer/components/CustomerDetailPage.vue",
       "./appointment/components/AppointmentManagement.vue",
       "./history-cleanup/components/HistoryCleanup.vue",
     ];
@@ -171,7 +172,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(storage).not.toContain("storage-card__icon");
   });
 
-  it("顾客管理页实现 v6 定稿的聚焦列表与详情操作分层", () => {
+  it("顾客管理与独立详情页实现已确认的列表和双 Tab 分层", () => {
     const pages = readSource("../pages.json");
     const management = readSource(
       "./customer/components/CustomerManagement.vue",
@@ -179,6 +180,18 @@ describe("阶段 4 界面韧性契约", () => {
     const list = readSource("./customer/components/CustomerList.vue");
     const card = readSource("./customer/components/CustomerCard.vue");
     const detail = readSource("./customer/components/CustomerDetail.vue");
+    const detailPage = readSource(
+      "./customer/components/CustomerDetailPage.vue",
+    );
+    const detailProfile = readSource(
+      "./customer/components/CustomerDetailProfile.vue",
+    );
+    const detailTabs = readSource(
+      "./customer/components/CustomerDetailTabs.vue",
+    );
+    const profileDetails = readSource(
+      "./customer/components/CustomerProfileDetails.vue",
+    );
     const form = readSource("./customer/components/CustomerForm.vue");
     const creation = readSource("./customer/components/CustomerCreate.vue");
     const draftProtection = readSource(
@@ -186,22 +199,54 @@ describe("阶段 4 界面韧性契约", () => {
     );
     const customerPage = readSource("../pages/customer/index.vue");
     const customerCreatePage = readSource("../pages/customer-create/index.vue");
+    const customerDetailRoute = readSource(
+      "../pages/customer-detail/index.vue",
+    );
+    const detailNavigation = readSource(
+      "./customer/customer-detail-navigation.ts",
+    );
+    const customerState = readSource(
+      "./customer/composables/useCustomerManagement.ts",
+    );
 
     expect(pages).toContain('"navigationBarTitleText": "顾客管理"');
     expect(pages).toContain('"navigationBarBackgroundColor": "#FFF8FA"');
     expect(pages).toContain('"path": "pages/customer-create/index"');
     expect(pages).toContain('"navigationBarTitleText": "新增顾客"');
+    expect(pages).toContain('"path": "pages/customer-detail/index"');
+    expect(pages).toContain('"navigationBarTitleText": "顾客详情"');
     expect(management).not.toContain("customer-management__intro");
-    expect(management).toContain("v-else-if=\"screen === 'form'\"");
+    expect(management).not.toContain("screen ===");
+    expect(management).not.toContain("<CustomerDetail");
+    expect(management).not.toContain("<CustomerForm");
     expect(management).toContain('@add="openCreateCustomer"');
     expect(management).toContain(
       'uni.navigateTo({ url: "/pages/customer-create/index" })',
     );
-    expect(management).toContain('@dirty-change="updateFormDirty"');
-    expect(management).toContain("scrollToErrorNotice");
+    expect(management).toContain("openCustomerDetail(customer.id)");
+    expect(detailNavigation).toContain(
+      "/pages/customer-detail/index?customerId=",
+    );
     expect(customerPage).toContain("onShow(refreshCustomerManagement)");
     expect(customerPage).toContain('ref="customerManagement"');
     expect(customerCreatePage).toContain("<CustomerCreate");
+    expect(customerDetailRoute).toContain("readCustomerDetailId(query)");
+    expect(customerDetailRoute).toContain("<CustomerDetailPage");
+    expect(customerDetailRoute).toContain("onShow(refreshCustomerDetail)");
+    expect(customerDetailRoute).toContain("returnToCustomerList()");
+    expect(customerDetailRoute).toContain("返回顾客列表");
+    expect(detailPage).toContain("RecoverableErrorNotice");
+    expect(detailPage).toContain(":retryable=\"errorKind === 'read'\"");
+    expect(detailPage).toContain('@dirty-change="updateDirty"');
+    expect(detailPage).toContain("scrollToErrorNotice");
+    expect(detailPage).toContain(
+      "refreshCustomerDetailForScreen(screen.value, refreshCustomer)",
+    );
+    expect(detailPage).toContain("返回顾客列表");
+    expect(customerState).toContain('screen === "detail"');
+    expect(customerState).toContain("refreshCustomerDetailForScreen");
+    expect(detailPage).not.toContain("../customer-detail-state");
+    expect(detail).not.toContain("../customer-detail-tabs");
     expect(creation).toContain("<CustomerForm");
     expect(creation).toContain("standalone");
     expect(creation).toContain("completeCustomerCreateNavigation()");
@@ -219,10 +264,46 @@ describe("阶段 4 界面韧性契约", () => {
     expect(card).not.toContain("customer-card__status");
     expect(card).toContain("customer-card__name--inactive");
     expect(card).toContain("text-decoration: line-through");
-    expect(detail).toContain("资料操作");
-    expect(detail).toContain("停用顾客");
-    expect(detail).toContain("重新启用");
-    expect(detail).toContain("彻底删除");
+    expect(detail).toContain("<CustomerDetailProfile");
+    expect(detail).toContain("<CustomerDetailTabs");
+    expect(detail).toContain("<CustomerProfileDetails");
+    expect(detail).toContain("<CustomerAppointmentHistory");
+    expect(detailProfile).toContain("累计完成");
+    expect(detailProfile).toContain("累计成交");
+    expect(detailProfile).toContain("call: [phoneNumber: string]");
+    expect(detailProfile).toContain(
+      `@click="emit('call', customer.phone)"`,
+    );
+    expect(detailProfile).toMatch(/<u-icon\s+[^>]*name="phone"/s);
+    expect(detailProfile).not.toContain('<AppIcon name="phone"');
+    expect(detailProfile).toContain(
+      '<text class="customer-profile__phone-action">拨打</text>',
+    );
+    expect(detailProfile).toMatch(
+      /\.customer-profile__phone\s*\{[^}]*border-radius:\s*12rpx;[^}]*background:\s*#f2edfa;/s,
+    );
+    expect(detailProfile).not.toContain("text-decoration: underline");
+    expect(detail).toContain('@call="callCustomer"');
+    expect(detail).toContain("uni.makePhoneCall({");
+    expect(detail).toContain("phoneNumber,");
+    expect(detail).toContain('title: "未能打开拨号界面"');
+    expect(detailProfile).toMatch(
+      /\.customer-profile__edit\s*\{[^}]*display:\s*flex;[^}]*height:\s*68rpx;[^}]*align-items:\s*center;[^}]*padding:\s*0 20rpx;[^}]*line-height:\s*1;/s,
+    );
+    expect(detailTabs).toContain("顾客资料");
+    expect(detailTabs).toContain("历史预约 {{ appointmentCount }}");
+    expect(profileDetails).toContain("服务地址");
+    expect(profileDetails).toContain("资料操作");
+    expect(profileDetails).toContain("停用顾客");
+    expect(profileDetails).toContain("重新启用");
+    expect(profileDetails).toContain("彻底删除");
+    expect(detailTabs).toContain('class="customer-tabs__indicator"');
+    expect(detailTabs).toMatch(
+      /\.customer-tabs__indicator\s*\{[^}]*position:\s*absolute;[^}]*bottom:\s*-2rpx;/s,
+    );
+    expect(detailTabs).not.toContain(
+      ".customer-tabs__item--active::after",
+    );
     expect(form).toContain("customer-form__field-error");
     expect(form).toContain("getCustomerFormErrorField");
     expect(form).toContain('code === "empty-address"');
