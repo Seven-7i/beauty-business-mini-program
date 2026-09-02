@@ -2,6 +2,7 @@ import type {
   CustomerAddressInput,
   CustomerRuleErrorCode,
 } from "@/services/customer-service";
+import type { CustomerV1 } from "@/domain/data-schema";
 
 /** 可承接业务校验错误的顾客表单区域。 */
 export type CustomerFormField = "nickname" | "phone" | "address";
@@ -17,8 +18,22 @@ export interface CustomerAddressDraftInput {
 }
 
 /**
+ * 把已有顾客地址复制成可编辑草稿，保留顺序、稳定标识和备注。
+ * 当前由 `CustomerForm` 的编辑模式预填调用；返回新对象，避免直接修改领域实体。
+ */
+export function cloneCustomerAddressesForDraft(
+  addresses: readonly Readonly<CustomerV1["addresses"][number]>[],
+): CustomerAddressDraftInput[] {
+  return addresses.map((address) => ({
+    id: address.id,
+    addressText: address.addressText,
+    note: address.note ?? "",
+  }));
+}
+
+/**
  * 生成提交给顾客服务的地址列表。
- * 独立新增页只忽略它自动提供的全空占位；内嵌编辑必须保留空行交给领域校验，避免静默删除地址。
+ * 新增模式只忽略它自动提供的全空占位；编辑模式必须保留空行交给领域校验，避免静默删除地址。
  */
 export function prepareCustomerAddressesForSubmit(
   addresses: readonly CustomerAddressDraftInput[],
@@ -57,25 +72,4 @@ export function getCustomerFormErrorField(
     return "address";
   }
   return undefined;
-}
-
-/** 有未保存改动时，离开表单必须先取得顾客的明确确认。 */
-export function shouldConfirmCustomerDraftDiscard(dirty: boolean): boolean {
-  return dirty;
-}
-
-/** 请求离开顾客表单；脏草稿由调用方取得确认后再执行离开动作。 */
-export function requestCustomerFormExit(options: {
-  /** 当前草稿是否偏离初始值。 */
-  dirty: boolean;
-  /** 打开平台确认框，并在用户确认时调用传入动作。 */
-  confirmDiscard: (discard: () => void) => void;
-  /** 真正清理草稿并切换页面内容的动作。 */
-  exit: () => void;
-}): void {
-  if (!shouldConfirmCustomerDraftDiscard(options.dirty)) {
-    options.exit();
-    return;
-  }
-  options.confirmDiscard(options.exit);
 }

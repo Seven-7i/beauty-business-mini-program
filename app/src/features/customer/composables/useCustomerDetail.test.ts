@@ -5,7 +5,6 @@ import type {
   PendingAppointmentV1,
 } from "@/domain/data-schema";
 import type { CustomerManagementService } from "@/services/customer-management-service";
-import { CustomerRuleError } from "@/services/customer-service";
 import { useCustomerDetail } from "./useCustomerManagement";
 
 const customer: CustomerV1 = {
@@ -117,25 +116,6 @@ describe("useCustomerDetail", () => {
     expect(detail.customer.value?.id).toBe(customer.id);
     expect(detail.errorKind.value).toBe("read");
     expect(detail.errorMessage.value).toContain("读取失败");
-  });
-
-  it("资料校验失败时保留稳定错误码，供表单定位字段", async () => {
-    const service = createService(baseData);
-    vi.mocked(service.updateCustomer).mockRejectedValueOnce(
-      new CustomerRuleError("duplicate-phone", "该手机号已用于其他顾客"),
-    );
-    const detail = useCustomerDetail(service, customer.id);
-
-    expect(
-      await detail.updateCustomer({
-        nickname: "张女士",
-        phone: "13900139000",
-        addresses: [],
-      }),
-    ).toBe(false);
-    expect(detail.errorKind.value).toBe("operation");
-    expect(detail.errorCode.value).toBe("duplicate-phone");
-    expect(detail.errorMessage.value).toBe("该手机号已用于其他顾客");
   });
 
   it("状态操作成功后刷新详情，删除失败则保留当前页面", async () => {

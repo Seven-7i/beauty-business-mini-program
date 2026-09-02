@@ -53,6 +53,14 @@ export function createCustomerManagementService(
     return options.repository.readSnapshot();
   }
 
+  /** 按稳定标识读取一位顾客；统一顾客表单页无需接触完整应用快照。 */
+  async function readCustomer(
+    customerId: string,
+  ): Promise<CustomerV1 | undefined> {
+    const data = await readData();
+    return data.customers.find((customer) => customer.id === customerId);
+  }
+
   async function createCustomer(
     input: CreateCustomerInput,
   ): Promise<CustomerV1> {
@@ -147,6 +155,7 @@ export function createCustomerManagementService(
 
   return {
     readData,
+    readCustomer,
     createCustomer,
     updateCustomer,
     setCustomerStatus,
@@ -159,8 +168,11 @@ export type CustomerManagementService = ReturnType<
   typeof createCustomerManagementService
 >;
 
-/** 独立新增顾客页可调用的最窄服务契约，只允许创建一位顾客。 */
-export type CustomerCreateService = Pick<
+/**
+ * 统一顾客表单页可调用的最窄服务契约。
+ * 新增模式只创建顾客，编辑模式额外读取并更新指定顾客。
+ */
+export type CustomerEditorService = Pick<
   CustomerManagementService,
-  "createCustomer"
+  "readCustomer" | "createCustomer" | "updateCustomer"
 >;

@@ -7,7 +7,6 @@ describe("顾客草稿返回保护", () => {
     const disableAlertBeforeUnload = vi.fn();
     const protection = createCustomerDraftProtectionController({
       wechat: { enableAlertBeforeUnload, disableAlertBeforeUnload },
-      confirmDiscard: vi.fn(),
     });
 
     protection.updateDirty(true);
@@ -19,27 +18,23 @@ describe("顾客草稿返回保护", () => {
     expect(disableAlertBeforeUnload).toHaveBeenCalledOnce();
   });
 
-  it("干净草稿直接退出，脏草稿只在确认后退出", () => {
-    let pendingDiscard: (() => void) | undefined;
-    const confirmDiscard = vi.fn((discard: () => void) => {
-      pendingDiscard = discard;
-    });
+  it("保存期间使用明确提示，失败后恢复原有脏草稿保护", () => {
+    const enableAlertBeforeUnload = vi.fn();
+    const disableAlertBeforeUnload = vi.fn();
     const protection = createCustomerDraftProtectionController({
-      confirmDiscard,
+      wechat: { enableAlertBeforeUnload, disableAlertBeforeUnload },
     });
-    const cleanExit = vi.fn();
-
-    protection.requestExit(cleanExit);
-    expect(cleanExit).toHaveBeenCalledOnce();
-    expect(confirmDiscard).not.toHaveBeenCalled();
 
     protection.updateDirty(true);
-    const dirtyExit = vi.fn();
-    protection.requestExit(dirtyExit);
-    expect(dirtyExit).not.toHaveBeenCalled();
-    expect(confirmDiscard).toHaveBeenCalledOnce();
+    protection.updateSaving(true);
+    expect(enableAlertBeforeUnload).toHaveBeenLastCalledWith({
+      message: "顾客资料正在保存，离开后仍会完成保存。",
+    });
 
-    pendingDiscard?.();
-    expect(dirtyExit).toHaveBeenCalledOnce();
+    protection.updateSaving(false);
+    expect(enableAlertBeforeUnload).toHaveBeenLastCalledWith({
+      message: "放弃本次编辑？",
+    });
+    expect(disableAlertBeforeUnload).not.toHaveBeenCalled();
   });
 });

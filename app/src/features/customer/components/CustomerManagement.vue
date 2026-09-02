@@ -3,6 +3,7 @@ import { onMounted, type DeepReadonly } from "vue";
 import type { CustomerV1 } from "@/domain/data-schema";
 import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import type { CustomerManagementService } from "@/services/customer-management-service";
+import { openCustomerEditor } from "../customer-create-navigation";
 import { openCustomerDetail } from "../customer-detail-navigation";
 import { useCustomerManagement } from "../composables/useCustomerManagement";
 import CustomerList from "./CustomerList.vue";
@@ -32,7 +33,7 @@ const {
 
 /** 从顾客列表进入独立新增顾客页面。 */
 function openCreateCustomer(): void {
-  uni.navigateTo({ url: "/pages/customer-create/index" });
+  openCustomerEditor();
 }
 
 /** 从列表进入指定顾客的独立详情页。 */

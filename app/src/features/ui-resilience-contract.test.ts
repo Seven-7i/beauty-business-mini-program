@@ -193,7 +193,7 @@ describe("阶段 4 界面韧性契约", () => {
       "./customer/components/CustomerProfileDetails.vue",
     );
     const form = readSource("./customer/components/CustomerForm.vue");
-    const creation = readSource("./customer/components/CustomerCreate.vue");
+    const editor = readSource("./customer/components/CustomerEditor.vue");
     const draftProtection = readSource(
       "./customer/composables/useCustomerDraftProtection.ts",
     );
@@ -204,6 +204,9 @@ describe("阶段 4 界面韧性契约", () => {
     );
     const detailNavigation = readSource(
       "./customer/customer-detail-navigation.ts",
+    );
+    const editorNavigation = readSource(
+      "./customer/customer-create-navigation.ts",
     );
     const customerState = readSource(
       "./customer/composables/useCustomerManagement.ts",
@@ -220,40 +223,54 @@ describe("阶段 4 界面韧性契约", () => {
     expect(management).not.toContain("<CustomerDetail");
     expect(management).not.toContain("<CustomerForm");
     expect(management).toContain('@add="openCreateCustomer"');
-    expect(management).toContain(
-      'uni.navigateTo({ url: "/pages/customer-create/index" })',
-    );
+    expect(management).toContain("openCustomerEditor();");
     expect(management).toContain("openCustomerDetail(customer.id)");
     expect(detailNavigation).toContain(
       "/pages/customer-detail/index?customerId=",
     );
     expect(customerPage).toContain("onShow(refreshCustomerManagement)");
     expect(customerPage).toContain('ref="customerManagement"');
-    expect(customerCreatePage).toContain("<CustomerCreate");
+    expect(customerCreatePage).toContain("<CustomerEditor");
+    expect(customerCreatePage).toContain("readCustomerEditorId(query)");
+    expect(customerCreatePage).toContain('title: customerId.value ? "编辑顾客" : "新增顾客"');
     expect(customerDetailRoute).toContain("readCustomerDetailId(query)");
     expect(customerDetailRoute).toContain("<CustomerDetailPage");
     expect(customerDetailRoute).toContain("onShow(refreshCustomerDetail)");
+    expect(customerDetailRoute).toContain('@edit="openCustomerEditor(customerId)"');
     expect(customerDetailRoute).toContain("returnToCustomerList()");
     expect(customerDetailRoute).toContain("返回顾客列表");
     expect(detailPage).toContain("RecoverableErrorNotice");
     expect(detailPage).toContain(":retryable=\"errorKind === 'read'\"");
-    expect(detailPage).toContain('@dirty-change="updateDirty"');
+    expect(detailPage).not.toContain('@dirty-change="updateDirty"');
     expect(detailPage).toContain("scrollToErrorNotice");
-    expect(detailPage).toContain(
-      "refreshCustomerDetailForScreen(screen.value, refreshCustomer)",
-    );
+    expect(detailPage).toContain("return refreshCustomer();");
+    expect(detailPage).toContain(`@edit="emit('edit')"`);
     expect(detailPage).toContain("返回顾客列表");
-    expect(customerState).toContain('screen === "detail"');
-    expect(customerState).toContain("refreshCustomerDetailForScreen");
+    expect(customerState).not.toContain('screen === "detail"');
+    expect(customerState).not.toContain("refreshCustomerDetailForScreen");
     expect(detailPage).not.toContain("../customer-detail-state");
     expect(detail).not.toContain("../customer-detail-tabs");
-    expect(creation).toContain("<CustomerForm");
-    expect(creation).toContain("standalone");
-    expect(creation).toContain("completeCustomerCreateNavigation()");
-    expect(draftProtection).toContain('title: "放弃本次编辑？"');
+    expect(editor).toContain("<CustomerForm");
+    expect(editor).toContain(":editing-customer=\"customer\"");
+    expect(editor).toContain("completeCustomerEditorNavigation(props.customerId)");
+    expect(editor).toContain("createCustomerEditorCompletionGuard");
+    expect(editor).toContain("notifyCustomerSaved(props.customerId)");
+    expect(editor).toContain("if (submitting.value)");
+    expect(editor).toContain("updateSaving(true)");
+    expect(editor).toContain("if (!completionGuard.isActive())");
+    expect(editor).toContain('@dirty-change="updateDirty"');
+    expect(editorNavigation).toContain("buildCustomerEditorUrl");
+    expect(editorNavigation).toContain("buildCustomerDetailUrl(customerId)");
+    expect(customerState).toContain("export function useCustomerEditor");
+    expect(editor).toContain(
+      'from "../composables/useCustomerManagement"',
+    );
+    expect(draftProtection).toContain("顾客资料正在保存，离开后仍会完成保存。");
     expect(draftProtection).toContain(
       "runtime.wechat.enableAlertBeforeUnload",
     );
+    expect(customerPage).toContain("subscribeCustomerSaved");
+    expect(customerDetailRoute).toContain("subscribeCustomerSaved");
     expect(list).toContain('<AppIcon name="search"');
     expect(list).toContain('<AppIcon name="add"');
     expect(list).toContain("搜索昵称或手机号");
@@ -308,14 +325,16 @@ describe("阶段 4 界面韧性契约", () => {
     expect(form).toContain("getCustomerFormErrorField");
     expect(form).toContain('code === "empty-address"');
     expect(form).toContain('".address-card--invalid"');
-    expect(form).toContain("customer-form--standalone");
+    expect(form).toContain("customer-form--page");
     expect(form).toContain("请输入中国大陆 11 位手机号");
     expect(form).toContain("保存顾客");
+    expect(form.match(/:disabled="submitting"/g)).toHaveLength(7);
+    expect(form).toContain("if (props.submitting)");
     expect(form).toContain("form.addresses.unshift");
     expect(form).toContain("shouldConfirmCustomerAddressRemoval");
     expect(form).toContain('title: "移除服务地址"');
     expect(form).toMatch(
-      /\.customer-form--standalone \.address-editor__empty\s*\{[^}]*padding:\s*22rpx 0;[^}]*text-align:\s*center;/s,
+      /\.customer-form--page \.address-editor__empty\s*\{[^}]*padding:\s*22rpx 0;[^}]*text-align:\s*center;/s,
     );
   });
 

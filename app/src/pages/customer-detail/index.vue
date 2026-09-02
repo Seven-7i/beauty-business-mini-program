@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { onLoad, onShow } from "@dcloudio/uni-app";
+import { onLoad, onShow, onUnload } from "@dcloudio/uni-app";
 import { shallowRef } from "vue";
 import { APP_VERSION } from "@/config/app";
 import CustomerDetailPage from "@/features/customer/components/CustomerDetailPage.vue";
+import {
+  openCustomerEditor,
+  subscribeCustomerSaved,
+  type CustomerSavedPayload,
+} from "@/features/customer/customer-create-navigation";
 import {
   completeCustomerDetailDeletion,
   readCustomerDetailId,
@@ -37,7 +42,18 @@ function refreshCustomerDetail(): void {
   void customerDetailPage.value?.refresh();
 }
 
+/** 保存异步完成时只刷新当前详情，避免其他顾客变更造成无关读取。 */
+function refreshSavedCustomer(payload: CustomerSavedPayload): void {
+  if (payload.customerId === customerId.value) {
+    refreshCustomerDetail();
+  }
+}
+
+const stopCustomerSavedSubscription = subscribeCustomerSaved(
+  refreshSavedCustomer,
+);
 onShow(refreshCustomerDetail);
+onUnload(stopCustomerSavedSubscription);
 </script>
 
 <template>
@@ -49,6 +65,7 @@ onShow(refreshCustomerDetail);
       :service="service"
       @back="returnToCustomerList()"
       @deleted="completeCustomerDetailDeletion"
+      @edit="openCustomerEditor(customerId)"
     />
     <view v-else class="customer-detail-route__invalid" role="alert">
       <text>缺少顾客标识，请返回顾客列表后重试。</text>

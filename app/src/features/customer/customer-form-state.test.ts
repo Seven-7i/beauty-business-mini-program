@@ -1,41 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  cloneCustomerAddressesForDraft,
   getCustomerFormErrorField,
   prepareCustomerAddressesForSubmit,
-  requestCustomerFormExit,
   shouldConfirmCustomerAddressRemoval,
-  shouldConfirmCustomerDraftDiscard,
 } from "./customer-form-state";
 
 describe("顾客表单状态", () => {
-  it("只在存在未保存改动时要求确认放弃", () => {
-    expect(shouldConfirmCustomerDraftDiscard(false)).toBe(false);
-    expect(shouldConfirmCustomerDraftDiscard(true)).toBe(true);
-  });
+  it("编辑预填复制多地址并原样保留顺序、标识和备注", () => {
+    const addresses = [
+      { id: "address-home", addressText: "建设路 8 号", note: "东门" },
+      { id: "address-studio", addressText: "人民路 16 号" },
+    ];
 
-  it("干净草稿直接退出，脏草稿只有确认后才退出", () => {
-    const cleanExit = vi.fn();
-    const cleanConfirm = vi.fn();
-    requestCustomerFormExit({
-      dirty: false,
-      confirmDiscard: cleanConfirm,
-      exit: cleanExit,
-    });
-    expect(cleanExit).toHaveBeenCalledOnce();
-    expect(cleanConfirm).not.toHaveBeenCalled();
+    const draft = cloneCustomerAddressesForDraft(addresses);
 
-    const dirtyExit = vi.fn();
-    let confirmDiscard: (() => void) | undefined;
-    requestCustomerFormExit({
-      dirty: true,
-      confirmDiscard(discard) {
-        confirmDiscard = discard;
-      },
-      exit: dirtyExit,
-    });
-    expect(dirtyExit).not.toHaveBeenCalled();
-    confirmDiscard?.();
-    expect(dirtyExit).toHaveBeenCalledOnce();
+    expect(draft).toEqual([
+      { id: "address-home", addressText: "建设路 8 号", note: "东门" },
+      { id: "address-studio", addressText: "人民路 16 号", note: "" },
+    ]);
+    expect(prepareCustomerAddressesForSubmit(draft, false)).toEqual(draft);
+    expect(draft[0]).not.toBe(addresses[0]);
   });
 
   it.each([
@@ -50,7 +35,7 @@ describe("顾客表单状态", () => {
     expect(getCustomerFormErrorField(code)).toBe(field);
   });
 
-  it("独立新增只忽略全空占位，仍保留只填备注的无效地址供领域校验", () => {
+  it("新增模式只忽略全空占位，仍保留只填备注的无效地址供领域校验", () => {
     expect(
       prepareCustomerAddressesForSubmit(
         [
@@ -66,7 +51,7 @@ describe("顾客表单状态", () => {
     ]);
   });
 
-  it("内嵌编辑保留被清空的已有地址，不允许静默当作删除", () => {
+  it("编辑模式保留被清空的已有地址，不允许静默当作删除", () => {
     expect(
       prepareCustomerAddressesForSubmit(
         [{ id: "existing", addressText: "", note: "" }],

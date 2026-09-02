@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onUnload } from "@dcloudio/uni-app";
 import { ref } from "vue";
 import { APP_VERSION } from "@/config/app";
 import CustomerManagement from "@/features/customer/components/CustomerManagement.vue";
-import { refreshCustomerListOnShow } from "@/features/customer/customer-create-navigation";
+import {
+  refreshCustomerListOnShow,
+  subscribeCustomerSaved,
+} from "@/features/customer/customer-create-navigation";
 import {
   createUniStorageAdapter,
   type UniStorageRuntime,
@@ -29,7 +32,11 @@ function refreshCustomerManagement(): void {
   void refreshCustomerListOnShow(customerManagement.value ?? undefined);
 }
 
+const stopCustomerSavedSubscription = subscribeCustomerSaved(
+  refreshCustomerManagement,
+);
 onShow(refreshCustomerManagement);
+onUnload(stopCustomerSavedSubscription);
 </script>
 
 <template>

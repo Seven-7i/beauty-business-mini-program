@@ -2,6 +2,7 @@ import { computed, readonly, shallowRef } from "vue";
 import type { AppointmentV1, CustomerV1 } from "@/domain/data-schema";
 import type {
   CreateCustomerInput,
+  CustomerEditorService,
   CustomerManagementService,
   UpdateCustomerInput,
 } from "@/services/customer-management-service";
@@ -18,8 +19,8 @@ import { deriveCustomerAppointmentHistory } from "../customer-appointment-histor
 /** 顾客详情页可区分的错误来源。 */
 export type CustomerDetailErrorKind = "" | "read" | "missing" | "operation";
 
-/** 独立顾客详情页的两个互斥内容状态。 */
-export type CustomerDetailScreen = "detail" | "form";
+/** 统一顾客表单页可区分的错误来源。 */
+export type CustomerEditorErrorKind = "" | "read" | "missing" | "operation";
 
 /** 顾客详情可切换的两个内容区。 */
 export type CustomerDetailTab = "profile" | "history";
@@ -152,6 +153,95 @@ export function useCustomerManagement(service: CustomerManagementService) {
 }
 
 /**
+ * 编排统一顾客表单页的读取与保存状态。
+ * 当前由 `CustomerEditor` 调用；无顾客标识时创建，有标识时读取并更新现有顾客。
+ * 与顾客详情状态同置于已稳定进入微信主包的顾客 composable，避免新增纯 TS 模块漏装。
+ */
+export function useCustomerEditor(
+  service: CustomerEditorService,
+  customerId = "",
+) {
+  const customer = shallowRef<CustomerV1>();
+  const loading = shallowRef(Boolean(customerId));
+  const submitting = shallowRef(false);
+  const errorMessage = shallowRef("");
+  const errorKind = shallowRef<CustomerEditorErrorKind>("");
+  const errorCode = shallowRef<CustomerRuleErrorCode | "">("");
+  const isEditing = Boolean(customerId);
+
+  /** 清除已经展示的读取或业务校验错误。 */
+  function clearError(): void {
+    errorMessage.value = "";
+    errorKind.value = "";
+    errorCode.value = "";
+  }
+
+  /** 编辑模式读取当前顾客；新增模式无需访问已有顾客集合。 */
+  async function loadCustomer(): Promise<boolean> {
+    if (!isEditing) {
+      return true;
+    }
+    loading.value = true;
+    clearError();
+    try {
+      const current = await service.readCustomer(customerId);
+      if (!current) {
+        customer.value = undefined;
+        errorKind.value = "missing";
+        errorMessage.value = "顾客不存在或已被删除，请返回顾客列表";
+        return false;
+      }
+      customer.value = current;
+      return true;
+    } catch {
+      errorKind.value = "read";
+      errorMessage.value = "顾客资料读取失败，为避免覆盖原数据，请稍后重试";
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /** 根据页面模式创建或更新顾客，并保留字段可定位的领域错误。 */
+  async function saveCustomer(input: CreateCustomerInput): Promise<boolean> {
+    submitting.value = true;
+    clearError();
+    try {
+      if (isEditing) {
+        await service.updateCustomer({ customerId, ...input });
+      } else {
+        await service.createCustomer(input);
+      }
+      return true;
+    } catch (error) {
+      errorKind.value = "operation";
+      errorMessage.value =
+        error instanceof Error
+          ? error.message
+          : "顾客资料保存失败，请稍后重试";
+      errorCode.value =
+        error instanceof CustomerRuleError ? error.code : "";
+      return false;
+    } finally {
+      submitting.value = false;
+    }
+  }
+
+  return {
+    customer: readonly(customer),
+    isEditing,
+    loading: readonly(loading),
+    submitting: readonly(submitting),
+    errorMessage: readonly(errorMessage),
+    errorKind: readonly(errorKind),
+    errorCode: readonly(errorCode),
+    clearError,
+    loadCustomer,
+    saveCustomer,
+  };
+}
+
+/**
  * 编排独立顾客详情页的读取与写入状态。
  * 与列表状态同置于已稳定进入微信主包的顾客 composable，避免新增纯 TS 模块被增量文件清单漏装。
  */
@@ -208,7 +298,7 @@ export function useCustomerDetail(
     }
   }
 
-  /** 统一保护详情写操作，并保留表单能够定位的领域错误码。 */
+  /** 统一保护详情页中的状态与删除写操作。 */
   async function runDetailMutation(
     operation: () => Promise<unknown>,
     fallbackMessage: string,
@@ -229,14 +319,6 @@ export function useCustomerDetail(
     } finally {
       submitting.value = false;
     }
-  }
-
-  /** 更新当前顾客资料并刷新详情快照。 */
-  function updateDetailCustomer(input: CreateCustomerInput): Promise<boolean> {
-    return runDetailMutation(
-      () => service.updateCustomer({ customerId, ...input }),
-      "顾客资料保存失败，请稍后重试",
-    );
   }
 
   /** 切换当前顾客启用状态并刷新详情快照。 */
@@ -269,25 +351,9 @@ export function useCustomerDetail(
     errorCode: readonly(errorCode),
     clearError,
     refresh,
-    updateCustomer: updateDetailCustomer,
     setCustomerStatus: setDetailCustomerStatus,
     deleteCustomer: deleteDetailCustomer,
   };
-}
-
-/** 详情展示时允许 onShow 刷新；编辑中保留表单快照和未保存草稿。 */
-export function shouldRefreshCustomerDetail(
-  screen: CustomerDetailScreen,
-): boolean {
-  return screen === "detail";
-}
-
-/** 按详情页面状态执行刷新，编辑中直接保留当前表单快照。 */
-export async function refreshCustomerDetailForScreen(
-  screen: CustomerDetailScreen,
-  refresh: () => Promise<boolean>,
-): Promise<boolean> {
-  return shouldRefreshCustomerDetail(screen) ? refresh() : true;
 }
 
 /** 创建默认展示资料页签、只通过明确动作切换的轻量状态。 */

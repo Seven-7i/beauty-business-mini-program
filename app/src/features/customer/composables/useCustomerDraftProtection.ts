@@ -1,5 +1,4 @@
 import { onBeforeUnmount } from "vue";
-import { requestCustomerFormExit } from "../customer-form-state";
 
 /** 顾客表单使用的微信原生返回询问最小接口。 */
 export interface WechatBeforeUnloadApi {
@@ -15,8 +14,6 @@ declare const wx: WechatBeforeUnloadApi | undefined;
 export interface CustomerDraftProtectionRuntime {
   /** 微信原生返回保护；非微信环境可以省略。 */
   wechat?: WechatBeforeUnloadApi;
-  /** 打开放弃确认，并在用户确认时执行传入动作。 */
-  confirmDiscard(discard: () => void): void;
 }
 
 /**
@@ -46,41 +43,30 @@ export function createCustomerDraftProtectionController(
     updateDirty(false);
   }
 
-  /** 请求退出表单，存在修改时先取得明确确认。 */
-  function requestExit(exit: () => void): void {
-    requestCustomerFormExit({
-      dirty,
-      exit,
-      confirmDiscard: runtime.confirmDiscard,
-    });
+  /** 保存期间说明离开不会取消已提交写入；保存失败后恢复原草稿保护。 */
+  function updateSaving(saving: boolean): void {
+    if (!runtime.wechat) {
+      return;
+    }
+    if (saving) {
+      runtime.wechat.enableAlertBeforeUnload({
+        message: "顾客资料正在保存，离开后仍会完成保存。",
+      });
+      return;
+    }
+    updateDirty(dirty);
   }
 
-  return { updateDirty, resetDirty, requestExit };
+  return { updateDirty, resetDirty, updateSaving };
 }
 
 /**
  * 统一管理顾客表单的脏草稿返回保护和放弃确认。
- * 当前由 `CustomerCreate` 独立新增页和 `CustomerDetailPage` 独立编辑流程调用。
+ * 当前由 `CustomerEditor` 的独立新增与编辑模式共同调用。
  */
 export function useCustomerDraftProtection() {
   const protection = createCustomerDraftProtectionController({
     wechat: typeof wx === "undefined" ? undefined : wx,
-    confirmDiscard(discard) {
-      uni.showModal({
-        title: "放弃本次编辑？",
-        content: "尚未保存的顾客资料将丢失。",
-        confirmText: "放弃",
-        confirmColor: "#A94442",
-        success(result) {
-          if (result.confirm) {
-            discard();
-          }
-        },
-        fail() {
-          uni.showToast({ title: "确认框打开失败", icon: "none" });
-        },
-      });
-    },
   });
 
   onBeforeUnmount(protection.resetDirty);

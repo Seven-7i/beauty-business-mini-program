@@ -54,6 +54,19 @@ function createMemoryRepository(initialData: ApplicationData) {
 }
 
 describe("顾客管理用例", () => {
+  it("按稳定标识读取单个顾客且不存在时返回空值", async () => {
+    const memory = createMemoryRepository({
+      ...createEmptyData(),
+      customers: [customer],
+    });
+    const service = createCustomerManagementService({
+      repository: memory.repository,
+    });
+
+    await expect(service.readCustomer(customer.id)).resolves.toEqual(customer);
+    await expect(service.readCustomer("missing-customer")).resolves.toBeUndefined();
+  });
+
   it("规范化表单后通过封闭命令新增顾客", async () => {
     const memory = createMemoryRepository(createEmptyData());
     const service = createCustomerManagementService({
