@@ -19,7 +19,15 @@ import AppointmentForm from "./AppointmentForm.vue";
 import AppointmentList from "./AppointmentList.vue";
 import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
-const props = defineProps<{ service: AppointmentManagementService }>();
+/** 预约页的业务用例与可选来源定位输入。 */
+interface AppointmentManagementProps {
+  /** 页面可调用的预约管理窄用例。 */
+  service: AppointmentManagementService;
+  /** 从库存动态进入时需要直接打开的来源预约标识。 */
+  initialAppointmentId?: string;
+}
+
+const props = defineProps<AppointmentManagementProps>();
 const {
   customers,
   projects,
@@ -216,6 +224,22 @@ function openCorrection(
   completingAppointment.value = appointment;
 }
 
+/** 首次读取后定位库存动态的来源预约；消耗记录只可能来自已完成预约。 */
+async function initialize(): Promise<void> {
+  await refresh();
+  if (!props.initialAppointmentId) {
+    return;
+  }
+  const source = appointmentsByStatus.value.find(
+    (appointment) => appointment.id === props.initialAppointmentId,
+  );
+  if (source?.status === "completed") {
+    openCorrection(source);
+    return;
+  }
+  uni.showToast({ title: "来源预约不可用", icon: "none" });
+}
+
 function confirmDelete(appointment: DeepReadonly<AppointmentV1>): void {
   const content =
     appointment.status === "completed"
@@ -251,7 +275,7 @@ function confirmDelete(appointment: DeepReadonly<AppointmentV1>): void {
   });
 }
 
-onMounted(refresh);
+onMounted(initialize);
 </script>
 
 <template>

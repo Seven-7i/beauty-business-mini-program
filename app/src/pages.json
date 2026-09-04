@@ -35,8 +35,40 @@
 		{
 			"path": "pages/inventory/index",
 			"style": {
-				"navigationBarTitleText": "物品库存",
-				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTitleText": "库存物品",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/inventory-create/index",
+			"style": {
+				"navigationBarTitleText": "新增库存物品",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/inventory-detail/index",
+			"style": {
+				"navigationBarTitleText": "物品详情",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/inventory-adjustment/index",
+			"style": {
+				"navigationBarTitleText": "库存调整",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/inventory-profile-edit/index",
+			"style": {
+				"navigationBarTitleText": "编辑物品资料",
+				"navigationBarBackgroundColor": "#FFF8FA",
 				"navigationBarTextStyle": "black"
 			}
 		},

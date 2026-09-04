@@ -1,317 +1,113 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from "vue";
-import type { InventoryItemV1, InventoryMovementV1 } from "@/domain/data-schema";
+import { onMounted } from "vue";
+import type { InventoryItemV1 } from "@/domain/data-schema";
+import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import type {
   AdjustInventoryInput,
-  CreateInventoryItemInput,
   InventoryManagementService,
-  RewriteManualInventoryMovementInput,
-  UpdateInventoryItemProfileInput,
 } from "@/services/inventory-management-service";
-import InventoryAdjustmentForm from "./InventoryAdjustmentForm.vue";
-import InventoryItemForm from "./InventoryItemForm.vue";
-import InventoryItemList from "./InventoryItemList.vue";
-import InventoryItemProfileForm from "./InventoryItemProfileForm.vue";
-import InventoryMovementList from "./InventoryMovementList.vue";
-import InventoryMovementEditForm from "./InventoryMovementEditForm.vue";
-import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 import { useInventoryManagement } from "../composables/useInventoryManagement";
+import InventoryItemList from "./InventoryItemList.vue";
 
-const props = defineProps<{
+/** 库存列表容器的业务用例输入。 */
+interface InventoryManagementProps {
+  /** 页面可调用的库存管理窄用例。 */
   service: InventoryManagementService;
-  /** 快速新增模式保存后直接返回来源表单，并回传新物品标识。 */
-  quickAddMode?: boolean;
-}>();
+}
 
-const emit = defineEmits<{
-  (event: "open-projects"): void;
-  (event: "quick-add-complete", inventoryItemId: string): void;
-}>();
+/** 库存列表路由在重新显示时可调用的最小刷新契约。 */
+interface InventoryManagementExpose {
+  /** 重新读取库存、预约占用和流水快照。 */
+  refresh(): Promise<void>;
+}
 
+const props = defineProps<InventoryManagementProps>();
 const {
-  items,
   itemSummaries,
-  movementsByRecency,
   loading,
   submitting,
   errorMessage,
   errorKind,
   refresh,
-  createItem,
-  adjustInventory,
-  updateItemProfile,
-  setItemStatus,
-  deleteItem,
-  rewriteMovement,
 } = useInventoryManagement({ service: props.service });
-const selectedItem = shallowRef<InventoryItemV1>();
-const selectedProfileItem = shallowRef<InventoryItemV1>();
-const selectedMovement = shallowRef<InventoryMovementV1>();
-const selectedMovementItem = computed(() =>
-  selectedMovement.value
-    ? items.value.find(
-        (item) => item.id === selectedMovement.value?.inventoryItemId,
-      )
-    : undefined,
-);
-const itemForm = ref<InstanceType<typeof InventoryItemForm> | null>(null);
 
-async function handleCreate(input: CreateInventoryItemInput): Promise<void> {
-  const created = await createItem(input);
-  if (created) {
-    itemForm.value?.reset();
-    if (props.quickAddMode) {
-      emit("quick-add-complete", created.id);
-      return;
-    }
-    uni.showToast({ title: "库存物品已保存", icon: "success" });
-  }
+/** 从库存列表进入独立新增物品页面。 */
+function openCreateItem(): void {
+  uni.navigateTo({ url: "/pages/inventory-create/index" });
 }
 
-async function handleAdjustment(input: AdjustInventoryInput): Promise<void> {
-  if (await adjustInventory(input)) {
-    selectedItem.value = undefined;
-    uni.showToast({ title: "库存已更新", icon: "success" });
-  }
-}
-
-async function handleProfileUpdate(
-  input: UpdateInventoryItemProfileInput,
-): Promise<void> {
-  if (await updateItemProfile(input)) {
-    selectedProfileItem.value = undefined;
-    uni.showToast({ title: "物品资料已更新", icon: "success" });
-  }
-}
-
-function editItem(item: InventoryItemV1): void {
-  selectedItem.value = undefined;
-  selectedMovement.value = undefined;
-  selectedProfileItem.value = item;
-}
-
-function adjustItem(item: InventoryItemV1): void {
-  selectedProfileItem.value = undefined;
-  selectedMovement.value = undefined;
-  selectedItem.value = item;
-}
-
-async function changeItemStatus(item: InventoryItemV1): Promise<void> {
-  const targetStatus = item.status === "active" ? "inactive" : "active";
-  if (targetStatus === "active") {
-    if (await setItemStatus(item.id, targetStatus)) {
-      uni.showToast({ title: "物品已重新启用", icon: "success" });
-    }
-    return;
-  }
-  uni.showModal({
-    title: `停用“${item.name}”？`,
-    content: "停用后历史记录仍会保留，但不能再用于新项目和新预约。",
-    confirmText: "确认停用",
-    confirmColor: "#A94442",
-    success(result) {
-      if (result.confirm) {
-        void setItemStatus(item.id, "inactive").then((saved) => {
-          if (saved) {
-            selectedItem.value = undefined;
-            selectedProfileItem.value = undefined;
-            uni.showToast({ title: "物品已停用", icon: "none" });
-          }
-        });
-      }
-    },
+/** 从库存卡片进入该物品的独立详情页。 */
+function openItemDetail(item: InventoryItemV1): void {
+  uni.navigateTo({
+    url: `/pages/inventory-detail/index?inventoryItemId=${encodeURIComponent(item.id)}`,
   });
 }
 
-function confirmDeleteItem(item: InventoryItemV1): void {
-  uni.showModal({
-    title: `彻底删除“${item.name}”？`,
-    content: "仅从未被项目或预约引用的物品可以删除；删除后相关手工变动也无法恢复。",
-    confirmText: "彻底删除",
-    confirmColor: "#A94442",
-    success(result) {
-      if (result.confirm) {
-        void deleteItem(item.id).then((deleted) => {
-          if (deleted) {
-            selectedItem.value = undefined;
-            selectedProfileItem.value = undefined;
-            uni.showToast({ title: "物品已删除", icon: "none" });
-          }
-        });
-      }
-    },
-  });
-}
-
-function editMovement(movement: InventoryMovementV1): void {
-  selectedItem.value = undefined;
-  selectedProfileItem.value = undefined;
-  selectedMovement.value = movement;
-}
-
-async function handleMovementEdit(
-  input: RewriteManualInventoryMovementInput,
-): Promise<void> {
-  if (await rewriteMovement(input)) {
-    selectedMovement.value = undefined;
-    uni.showToast({ title: "库存记录已更新", icon: "success" });
-  }
-}
-
-function confirmDeleteMovement(movement: InventoryMovementV1): void {
-  uni.showModal({
-    title: "删除这条手工库存记录？",
-    content: "删除后会重新计算后续库存结余；若低于预约占用，系统会阻止删除。",
-    confirmText: "删除重算",
-    confirmColor: "#A94442",
-    success(result) {
-      if (result.confirm) {
-        void rewriteMovement({
-          movementId: movement.id,
-          operation: "delete",
-        }).then((deleted) => {
-          if (deleted) {
-            selectedMovement.value = undefined;
-            uni.showToast({ title: "库存记录已删除", icon: "none" });
-          }
-        });
-      }
-    },
+/** 从库存卡片按指定方式进入独立补货或盘点修正页。 */
+function adjustItem(
+  item: InventoryItemV1,
+  kind: AdjustInventoryInput["kind"],
+): void {
+  uni.navigateTo({
+    url: `/pages/inventory-adjustment/index?inventoryItemId=${encodeURIComponent(
+      item.id,
+    )}&kind=${kind}`,
   });
 }
 
 onMounted(refresh);
+
+const exposed: InventoryManagementExpose = { refresh };
+defineExpose(exposed);
 </script>
 
 <template>
-  <view class="inventory-management">
-    <view class="inventory-management__intro">
-      <text class="inventory-management__eyebrow">美容 · 基础资料</text>
-      <text class="inventory-management__title">物品库存</text>
-      <text class="inventory-management__description">
-        补货和盘点都会保留变动记录；预约占用的库存不能被盘点到更低。
-      </text>
-      <button v-if="!quickAddMode" class="inventory-management__project-link" @click="$emit('open-projects')">
-        进入服务项目 →
-      </button>
-      <text v-else class="inventory-management__quick-add-note">
-        保存后将返回服务项目，并自动选中这项库存物品。
-      </text>
-    </view>
-
-    <InventoryItemForm
-      ref="itemForm"
-      :submitting="submitting"
-      @submit="handleCreate"
+  <main class="inventory-management">
+    <view
+      class="inventory-management__glow inventory-management__glow--rose"
+      aria-hidden="true"
     />
+    <view
+      class="inventory-management__glow inventory-management__glow--lavender"
+      aria-hidden="true"
+    />
+
     <RecoverableErrorNotice
       v-if="errorMessage"
+      class="inventory-management__notice"
       :message="errorMessage"
       :retryable="errorKind === 'read'"
       :retrying="loading"
       @retry="refresh"
     />
-    <view v-if="loading" class="inventory-management__loading">正在读取本机库存</view>
-    <template v-else>
-      <InventoryAdjustmentForm
-        v-if="selectedItem"
-        :item="selectedItem"
-        :submitting="submitting"
-        @submit="handleAdjustment"
-        @cancel="selectedItem = undefined"
-      />
-      <InventoryItemProfileForm
-        v-else-if="selectedProfileItem"
-        :item="selectedProfileItem"
-        :submitting="submitting"
-        @submit="handleProfileUpdate"
-        @cancel="selectedProfileItem = undefined"
-      />
-      <InventoryMovementEditForm
-        v-else-if="selectedMovement && selectedMovementItem"
-        :movement="selectedMovement"
-        :item="selectedMovementItem"
-        :submitting="submitting"
-        @submit="handleMovementEdit"
-        @cancel="selectedMovement = undefined"
-      />
+
+    <view v-if="loading" class="inventory-management__loading" role="status">
+      正在读取本机库存
+    </view>
+    <view
+      v-show="!loading"
+      class="inventory-management__list-view"
+    >
       <InventoryItemList
         :summaries="itemSummaries"
         :disabled="submitting"
+        @add="openCreateItem"
+        @view="openItemDetail"
         @adjust="adjustItem"
-        @edit="editItem"
-        @toggle-status="changeItemStatus"
-        @delete="confirmDeleteItem"
       />
-      <InventoryMovementList
-        :movements="movementsByRecency"
-        :items="items"
-        :disabled="submitting"
-        @edit="editMovement"
-        @delete="confirmDeleteMovement"
-      />
-    </template>
-  </view>
+    </view>
+  </main>
 </template>
 
 <style scoped>
-.inventory-management {
-  min-height: 100vh;
-  box-sizing: border-box;
-  padding: 36rpx 28rpx calc(50rpx + env(safe-area-inset-bottom));
-}
+.inventory-management { position: relative; min-height: 100vh; box-sizing: border-box; overflow: hidden; padding: 34rpx 30rpx calc(56rpx + env(safe-area-inset-bottom)); background: linear-gradient(180deg, #fff8fa 0%, #fbf4f7 52%, #f8f4f7 100%); }
+.inventory-management__glow { position: absolute; z-index: 0; border-radius: 999rpx; pointer-events: none; }
+.inventory-management__glow--rose { top: -120rpx; right: -170rpx; width: 500rpx; height: 500rpx; background: radial-gradient(circle, rgba(244, 205, 220, 0.5) 0%, rgba(244, 205, 220, 0) 70%); }
+.inventory-management__glow--lavender { top: 30rpx; right: -130rpx; width: 420rpx; height: 320rpx; background: radial-gradient(circle, rgba(219, 198, 237, 0.4) 0%, rgba(219, 198, 237, 0) 72%); }
+.inventory-management__notice, .inventory-management__loading, .inventory-management__list-view { position: relative; z-index: 2; }
+.inventory-management__loading { padding: 28rpx 24rpx; border: 2rpx solid rgba(137, 106, 128, 0.08); border-radius: 20rpx; background: rgba(255, 255, 255, 0.9); color: #766e74; font-size: 23rpx; text-align: center; }
 
-.inventory-management__intro {
-  display: flex;
-  flex-direction: column;
-  padding: 0 6rpx 28rpx;
-}
-
-.inventory-management__eyebrow {
-  color: #31549e;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.inventory-management__title {
-  margin-top: 12rpx;
-  color: #1a2538;
-  font-size: 42rpx;
-  font-weight: 700;
-}
-
-.inventory-management__description {
-  margin-top: 12rpx;
-  color: #707b8f;
-  font-size: 23rpx;
-  line-height: 1.6;
-}
-
-.inventory-management__project-link {
-  align-self: flex-start;
-  margin-top: 18rpx;
-  background: transparent;
-  color: #31549e;
-  font-size: 23rpx;
-  font-weight: 600;
-}
-
-.inventory-management__quick-add-note {
-  margin-top: 16rpx;
-  color: #31549e;
-  font-size: 22rpx;
-}
-
-.inventory-management__loading {
-  margin-top: 22rpx;
-  padding: 18rpx 20rpx;
-  border-radius: 12rpx;
-  font-size: 23rpx;
-}
-
-.inventory-management__loading {
-  background: #eef2f8;
-  color: #68748a;
-  text-align: center;
+@media (max-width: 360px) {
+  .inventory-management { padding-right: 24rpx; padding-left: 24rpx; }
 }
 </style>

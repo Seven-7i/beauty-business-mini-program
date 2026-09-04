@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onLoad } from "@dcloudio/uni-app";
+import { shallowRef } from "vue";
 import { APP_VERSION } from "@/config/app";
 import AppointmentManagement from "@/features/appointment/components/AppointmentManagement.vue";
 import {
@@ -17,9 +19,22 @@ const repository = createApplicationDataRepository({
   appVersion: APP_VERSION,
 });
 const service = createAppointmentManagementService({ repository });
+const initialAppointmentId = shallowRef("");
+
+/** 来源库存动态可以请求直接打开对应预约的完成信息。 */
+onLoad((query) => {
+  initialAppointmentId.value = query?.appointmentId?.trim() ?? "";
+});
 </script>
 
-<template><view class="appointment-page"><AppointmentManagement :service="service" /></view></template>
+<template>
+  <view class="appointment-page">
+    <AppointmentManagement
+      :service="service"
+      :initial-appointment-id="initialAppointmentId"
+    />
+  </view>
+</template>
 
 <style scoped>
 .appointment-page { min-height: 100vh; background: #f8f9fb; }

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { onLoad } from "@dcloudio/uni-app";
+import { shallowRef } from "vue";
+import { onLoad, onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
+import {
+  cancelQuickAddInventoryRequest,
+  prepareLegacyInventoryQuickAddRedirect,
+} from "@/features/beauty-project/quick-add-inventory-handoff";
 import InventoryManagement from "@/features/inventory/components/InventoryManagement.vue";
-import { publishQuickAddedInventoryItem } from "@/features/beauty-project/quick-add-inventory-handoff";
 import {
   createUniStorageAdapter,
   type UniStorageRuntime,
@@ -19,30 +22,39 @@ const repository = createApplicationDataRepository({
   appVersion: APP_VERSION,
 });
 const service = createInventoryManagementService({ repository });
-const quickAddMode = ref(false);
+const inventoryManagement =
+  shallowRef<InstanceType<typeof InventoryManagement> | null>(null);
 
-/** 页面 query 只决定交互返回方式，不参与任何业务数据持久化。 */
+/** 兼容旧快速新增链接，将其替换为新的独立新增页。 */
 onLoad((query) => {
-  quickAddMode.value = query?.mode === "project-quick-add";
+  if (query?.mode === "project-quick-add") {
+    const redirect = prepareLegacyInventoryQuickAddRedirect(
+      getCurrentPages().length,
+    );
+    uni.redirectTo({
+      url: redirect.url,
+      fail: () => {
+        if (redirect.requestId) {
+          cancelQuickAddInventoryRequest(redirect.requestId);
+        }
+      },
+    });
+  }
 });
 
-function openProjects(): void {
-  uni.navigateTo({ url: "/pages/beauty-project/index" });
+/** 从物品详情返回列表时读回最新库存，同时保留列表组件内的搜索和范围状态。 */
+function refreshInventoryList(): void {
+  void inventoryManagement.value?.refresh();
 }
 
-function completeQuickAdd(inventoryItemId: string): void {
-  publishQuickAddedInventoryItem(inventoryItemId);
-  uni.navigateBack();
-}
+onShow(refreshInventoryList);
 </script>
 
 <template>
   <view class="inventory-page">
     <InventoryManagement
+      ref="inventoryManagement"
       :service="service"
-      :quick-add-mode="quickAddMode"
-      @open-projects="openProjects"
-      @quick-add-complete="completeQuickAdd"
     />
   </view>
 </template>
@@ -50,6 +62,6 @@ function completeQuickAdd(inventoryItemId: string): void {
 <style scoped>
 .inventory-page {
   min-height: 100vh;
-  background: #f8f9fb;
+  background: #fff8fa;
 }
 </style>

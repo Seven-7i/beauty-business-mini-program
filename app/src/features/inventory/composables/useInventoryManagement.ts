@@ -1,6 +1,7 @@
 import { computed, readonly, shallowRef } from "vue";
 import type {
   AppointmentV1,
+  BeautyProjectV1,
   InventoryItemV1,
   InventoryMovementV1,
 } from "@/domain/data-schema";
@@ -14,6 +15,7 @@ import type {
 import {
   calculateAvailableQuantity,
   calculateOccupiedQuantity,
+  isInventoryItemUnitLocked,
 } from "@/services/inventory-service";
 
 export interface UseInventoryManagementOptions {
@@ -28,6 +30,47 @@ export interface InventoryItemStockSummary {
   availableQuantity: string;
 }
 
+/** 物品详情的两个稳定内容区。 */
+export type InventoryItemDetailTab = "profile" | "activity";
+
+/** 库存列表筛选所需的最小库存物品形状。 */
+interface FilterableInventoryItem {
+  item: Pick<InventoryItemV1, "name" | "status">;
+}
+
+/**
+ * 按确认稿在互斥的启用/停用范围内匹配库存物品名称。
+ * 当前由 InventoryItemList 调用；放在稳定装载的库存 composable 模块中，避免微信主包遗漏独立纯 TS 模块。
+ */
+export function filterInventoryItems<TSummary extends FilterableInventoryItem>(
+  summaries: readonly TSummary[],
+  keyword: string,
+  inactiveOnly: boolean,
+): TSummary[] {
+  const query = keyword.trim();
+  const visibleStatus: InventoryItemV1["status"] = inactiveOnly
+    ? "inactive"
+    : "active";
+
+  return summaries.filter(
+    ({ item }) =>
+      item.status === visibleStatus && (!query || item.name.includes(query)),
+  );
+}
+
+/**
+ * 从统一库存流水中筛出一个物品的动态并按发生时间倒序排列。
+ * 当前由物品详情页使用；保留统一记录源，未来可直接汇总为全局流水。
+ */
+export function filterInventoryMovementsForItem(
+  movements: readonly InventoryMovementV1[],
+  inventoryItemId: string,
+): InventoryMovementV1[] {
+  return movements
+    .filter((movement) => movement.inventoryItemId === inventoryItemId)
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+}
+
 /** 编排库存页异步状态；组件只发出用户意图，不直接访问 repository。 */
 export function useInventoryManagement(
   options: UseInventoryManagementOptions,
@@ -35,6 +78,7 @@ export function useInventoryManagement(
   const items = shallowRef<InventoryItemV1[]>([]);
   const movements = shallowRef<InventoryMovementV1[]>([]);
   const appointments = shallowRef<AppointmentV1[]>([]);
+  const projects = shallowRef<BeautyProjectV1[]>([]);
   const loading = shallowRef(false);
   const submitting = shallowRef(false);
   const errorMessage = shallowRef("");
@@ -60,6 +104,20 @@ export function useInventoryManagement(
     [...movements.value]
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)),
   );
+  const unitLockedItemIds = computed(() =>
+    new Set(
+      items.value
+        .filter((item) =>
+          isInventoryItemUnitLocked(
+            item.id,
+            projects.value,
+            appointments.value,
+            movements.value,
+          ),
+        )
+        .map((item) => item.id),
+    ),
+  );
 
   async function refresh(): Promise<void> {
     loading.value = true;
@@ -70,6 +128,7 @@ export function useInventoryManagement(
       items.value = data.inventoryItems;
       movements.value = data.inventoryMovements;
       appointments.value = data.appointments;
+      projects.value = data.projects;
     } catch {
       errorKind.value = "read";
       errorMessage.value = "库存读取失败，为避免覆盖原数据，请返回后重试";
@@ -144,6 +203,7 @@ export function useInventoryManagement(
     activeItems,
     itemSummaries,
     movementsByRecency,
+    unitLockedItemIds,
     loading: readonly(loading),
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),

@@ -44,6 +44,26 @@ function isInventoryItemReferenced(
   );
 }
 
+/**
+ * 判断物品的计量单位是否已被项目、预约或历史预约消耗锁定。
+ * 当前由库存资料编辑页和库存 service 校验共同调用，确保界面提示与提交规则一致。
+ */
+export function isInventoryItemUnitLocked(
+  inventoryItemId: string,
+  projects: readonly BeautyProjectV1[],
+  appointments: readonly AppointmentV1[],
+  movements: readonly InventoryMovementV1[] = [],
+): boolean {
+  return (
+    isInventoryItemReferenced(inventoryItemId, projects, appointments) ||
+    movements.some(
+      (movement) =>
+        movement.inventoryItemId === inventoryItemId &&
+        movement.type === "appointment-consumption",
+    )
+  );
+}
+
 /** 被项目或任意历史预约引用的库存物品只能停用，不能彻底删除。 */
 export function assertInventoryItemCanBeDeleted(
   inventoryItemId: string,
@@ -74,14 +94,13 @@ export function assertInventoryItemUnitCanBeChanged(
   appointments: readonly AppointmentV1[],
   movements: readonly InventoryMovementV1[] = [],
 ): void {
-  const hasAppointmentConsumption = movements.some(
-    (movement) =>
-      movement.inventoryItemId === inventoryItemId &&
-      movement.type === "appointment-consumption",
-  );
   if (
-    isInventoryItemReferenced(inventoryItemId, projects, appointments) ||
-    hasAppointmentConsumption
+    isInventoryItemUnitLocked(
+      inventoryItemId,
+      projects,
+      appointments,
+      movements,
+    )
   ) {
     throw new InventoryRuleError(
       "referenced-item",

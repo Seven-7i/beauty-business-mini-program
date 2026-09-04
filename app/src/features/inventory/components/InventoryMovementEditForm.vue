@@ -3,19 +3,30 @@ import { reactive, watch } from "vue";
 import type { InventoryItemV1, InventoryMovementV1 } from "@/domain/data-schema";
 import type { RewriteManualInventoryMovementInput } from "@/services/inventory-management-service";
 
-const props = defineProps<{
+/** 手工库存动态更正表单的业务输入。 */
+interface InventoryMovementEditFormProps {
+  /** 当前需要更正的手工库存动态。 */
   movement: InventoryMovementV1;
+  /** 动态所属物品，用于数量单位与标题。 */
   item: InventoryItemV1;
+  /** 重算提交期间锁定全部字段。 */
   submitting: boolean;
-}>();
+}
 
-const emit = defineEmits<{
-  (event: "submit", input: RewriteManualInventoryMovementInput): void;
-  (event: "cancel"): void;
-}>();
+/** 手工库存动态更正表单向详情容器暴露的操作。 */
+interface InventoryMovementEditFormEmits {
+  /** 提交更正并要求重算后续结余。 */
+  submit: [input: RewriteManualInventoryMovementInput];
+  /** 放弃更正并返回物品动态。 */
+  cancel: [];
+}
+
+const props = defineProps<InventoryMovementEditFormProps>();
+const emit = defineEmits<InventoryMovementEditFormEmits>();
 
 const form = reactive({ quantityInput: "", note: "" });
 
+/** 切换目标动态时重新载入数量与说明草稿。 */
 function loadMovement(): void {
   form.quantityInput =
     props.movement.type === "restock"
@@ -26,6 +37,7 @@ function loadMovement(): void {
 
 watch(() => props.movement.id, loadMovement, { immediate: true });
 
+/** 将更正草稿转换为服务接受的库存动态重算命令。 */
 function submit(): void {
   emit("submit", {
     movementId: props.movement.id,
@@ -49,11 +61,22 @@ function submit(): void {
     </view>
     <label class="movement-edit__field">
       <text>数量（{{ item.unit }}）</text>
-      <input v-model="form.quantityInput" type="digit" maxlength="14" />
+      <input
+        v-model="form.quantityInput"
+        :disabled="submitting"
+        type="digit"
+        maxlength="14"
+      />
     </label>
     <label class="movement-edit__field">
       <text>说明（选填）</text>
-      <textarea v-model="form.note" class="movement-edit__textarea" auto-height maxlength="200" />
+      <textarea
+        v-model="form.note"
+        class="movement-edit__textarea"
+        :disabled="submitting"
+        auto-height
+        maxlength="200"
+      />
     </label>
     <view class="movement-edit__warning">保存后系统会重新计算这条记录之后的库存结余。</view>
     <button class="movement-edit__submit" :disabled="submitting" @click="submit">

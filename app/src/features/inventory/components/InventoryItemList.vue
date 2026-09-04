@@ -1,293 +1,139 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
 import type { InventoryItemV1 } from "@/domain/data-schema";
-import type { InventoryItemStockSummary } from "../composables/useInventoryManagement";
+import {
+  filterInventoryItems,
+  type InventoryItemStockSummary,
+} from "../composables/useInventoryManagement";
+import InventoryItemCard from "./InventoryItemCard.vue";
 
-defineEmits<{
-  (event: "adjust", item: InventoryItemV1): void;
-  (event: "edit", item: InventoryItemV1): void;
-  (event: "toggle-status", item: InventoryItemV1): void;
-  (event: "delete", item: InventoryItemV1): void;
-}>();
-
-const props = defineProps<{
+/** 库存物品列表的只读展示输入。 */
+interface InventoryItemListProps {
+  /** 已按状态和名称排序的全部库存摘要。 */
   summaries: readonly InventoryItemStockSummary[];
+  /** 页面正在提交业务操作时禁止重复进入。 */
   disabled: boolean;
-}>();
+}
 
-const activeCount = computed(
-  () => props.summaries.filter(({ item }) => item.status === "active").length,
+/** 库存物品列表向页面编排层暴露的操作。 */
+interface InventoryItemListEmits {
+  /** 请求打开新增库存物品表单。 */
+  add: [];
+  /** 请求进入指定库存物品详情。 */
+  view: [item: InventoryItemV1];
+  /** 请求以指定方式调整库存。 */
+  adjust: [item: InventoryItemV1, kind: "restock" | "stocktake"];
+}
+
+const props = defineProps<InventoryItemListProps>();
+const emit = defineEmits<InventoryItemListEmits>();
+const keyword = shallowRef("");
+const inactiveOnly = shallowRef(false);
+const visibleSummaries = computed(() =>
+  filterInventoryItems(props.summaries, keyword.value, inactiveOnly.value),
 );
-const query = shallowRef("");
-const statusFilter = shallowRef<"all" | "active" | "inactive">("all");
-const statusOptions = ["全部状态", "仅启用", "仅停用"];
-const visibleSummaries = computed(() => {
-  const normalizedQuery = query.value.trim();
-  return props.summaries.filter(({ item }) => {
-    const matchesStatus =
-      statusFilter.value === "all" || item.status === statusFilter.value;
-    const matchesQuery =
-      !normalizedQuery ||
-      item.name.includes(normalizedQuery) ||
-      item.unit.includes(normalizedQuery);
-    return matchesStatus && matchesQuery;
-  });
+const emptyMessage = computed(() => {
+  if (keyword.value.trim()) {
+    return inactiveOnly.value
+      ? "没有符合搜索条件的停用物品"
+      : "没有符合搜索条件的启用物品";
+  }
+  return inactiveOnly.value
+    ? "暂无停用库存物品"
+    : "还没有启用库存物品，点击“新增”添加第一项物品";
 });
 
-function selectStatus(event: { detail: { value: string } }): void {
-  const index = Number(event.detail.value);
-  statusFilter.value = index === 1 ? "active" : index === 2 ? "inactive" : "all";
+/** 在互斥的启用物品与停用物品范围之间切换。 */
+function toggleInactiveOnly(): void {
+  inactiveOnly.value = !inactiveOnly.value;
 }
 </script>
 
 <template>
-  <view class="item-list">
-    <view class="item-list__heading">
-      <text class="item-list__title">当前库存</text>
-      <text class="item-list__count">{{ activeCount }} 种启用物品</text>
+  <section class="inventory-list" aria-label="库存物品列表">
+    <view class="inventory-list__toolbar">
+      <label class="inventory-list__search">
+        <u-icon name="search" color="#777078" size="24" />
+        <input
+          v-model="keyword"
+          class="inventory-list__search-input"
+          maxlength="40"
+          placeholder="搜索物品名称"
+          placeholder-style="color:#938c92"
+          confirm-type="search"
+        />
+      </label>
+      <button
+        class="inventory-list__add"
+        :disabled="disabled"
+        aria-label="新增库存物品"
+        hover-class="inventory-list__add--pressed"
+        :hover-start-time="20"
+        :hover-stay-time="80"
+        @click="emit('add')"
+      >
+        <u-icon name="plus" color="#FFFFFF" size="22" />
+        <text>新增</text>
+      </button>
     </view>
 
-    <view class="item-list__filters">
-      <input v-model="query" maxlength="40" placeholder="搜索名称或单位" />
-      <picker :range="statusOptions" @change="selectStatus">
-        <view class="item-list__status-filter">
-          {{ statusFilter === "active" ? "仅启用" : statusFilter === "inactive" ? "仅停用" : "全部状态" }}
+    <view class="inventory-list__scope">
+      <text class="inventory-list__count">{{ visibleSummaries.length }} 种</text>
+      <button
+        class="inventory-list__inactive-toggle"
+        role="checkbox"
+        :aria-checked="inactiveOnly"
+        :disabled="disabled"
+        @click="toggleInactiveOnly"
+      >
+        <view
+          class="inventory-list__checkbox"
+          :class="{ 'inventory-list__checkbox--checked': inactiveOnly }"
+          aria-hidden="true"
+        >
+          <text v-if="inactiveOnly" class="inventory-list__checkmark">✓</text>
         </view>
-      </picker>
+        <text>仅看停用</text>
+      </button>
     </view>
 
-    <view v-if="summaries.length === 0" class="item-list__empty">
-      <text class="item-list__empty-title">还没有库存物品</text>
-      <text class="item-list__empty-copy">先新增常用物品，后续项目可设置默认用量。</text>
+    <view v-if="!visibleSummaries.length" class="inventory-list__empty" role="status">
+      {{ emptyMessage }}
     </view>
-    <view v-else-if="visibleSummaries.length === 0" class="item-list__empty">
-      没有符合当前搜索和状态条件的物品。
+
+    <view v-else class="inventory-list__cards">
+      <InventoryItemCard
+        v-for="summary in visibleSummaries"
+        :key="summary.item.id"
+        :summary="summary"
+        :disabled="disabled"
+        @view="emit('view', $event)"
+        @adjust="(item, kind) => emit('adjust', item, kind)"
+      />
     </view>
-    <view v-else class="item-list__records">
-      <view v-for="summary in visibleSummaries" :key="summary.item.id" class="item-card">
-        <view class="item-card__copy">
-          <view class="item-card__name-line">
-            <text class="item-card__name">{{ summary.item.name }}</text>
-            <text v-if="summary.item.status === 'inactive'" class="item-card__status">已停用</text>
-          </view>
-          <text class="item-card__note">
-            占用 {{ summary.occupiedQuantity }} · 可用 {{ summary.availableQuantity }}{{ summary.item.unit }}
-          </text>
-        </view>
-        <view class="item-card__quantity">
-          <text class="item-card__number">{{ summary.item.currentQuantity }}</text>
-          <text class="item-card__unit">{{ summary.item.unit }}</text>
-        </view>
-        <view class="item-card__actions">
-          <button
-            v-if="summary.item.status === 'active'"
-            class="item-card__action"
-            :disabled="disabled"
-            @click="$emit('adjust', summary.item)"
-          >调整</button>
-          <button class="item-card__action" :disabled="disabled" @click="$emit('edit', summary.item)">
-            编辑
-          </button>
-          <button class="item-card__status-action" :disabled="disabled" @click="$emit('toggle-status', summary.item)">
-            {{ summary.item.status === "active" ? "停用" : "启用" }}
-          </button>
-          <button class="item-card__delete-action" :disabled="disabled" @click="$emit('delete', summary.item)">
-            删除
-          </button>
-        </view>
-      </view>
-    </view>
-  </view>
+  </section>
 </template>
 
 <style scoped>
-.item-list {
-  margin-top: 34rpx;
-}
+.inventory-list { position: relative; z-index: 1; }
+.inventory-list__toolbar, .inventory-list__search, .inventory-list__add, .inventory-list__scope, .inventory-list__inactive-toggle { display: flex; align-items: center; }
+.inventory-list__toolbar { gap: 18rpx; }
+.inventory-list__search { min-width: 0; height: 88rpx; box-sizing: border-box; flex: 1; gap: 16rpx; padding: 0 24rpx; border: 2rpx solid rgba(137, 106, 128, 0.08); border-radius: 22rpx; background: rgba(255, 255, 255, 0.94); box-shadow: 0 12rpx 34rpx rgba(111, 75, 101, 0.06); }
+.inventory-list__search-input { min-width: 0; height: 84rpx; flex: 1; color: #332f33; font-size: 25rpx; }
+.inventory-list__add { width: 164rpx; min-height: 88rpx; flex: none; justify-content: center; gap: 8rpx; margin: 0; padding: 0 18rpx; border: 0; border-radius: 22rpx; background: linear-gradient(135deg, #7853b9 0%, #6437aa 100%); box-shadow: 0 14rpx 30rpx rgba(102, 59, 161, 0.22); color: #ffffff; font-size: 25rpx; font-weight: 600; line-height: 1; transition: opacity 120ms ease, transform 120ms ease; }
+.inventory-list__add--pressed { opacity: 0.88; transform: scale(0.98); }
+.inventory-list__scope { min-height: 76rpx; justify-content: space-between; gap: 18rpx; margin-top: 28rpx; padding: 0 2rpx; flex-wrap: wrap; }
+.inventory-list__count { color: #6f45b5; font-size: 25rpx; font-weight: 600; }
+.inventory-list__inactive-toggle { min-height: 68rpx; flex: none; gap: 12rpx; margin: 0; padding: 8rpx 0 8rpx 16rpx; border: 0; background: transparent; color: #413b40; font-size: 24rpx; line-height: 1.2; }
+.inventory-list__checkbox { display: flex; width: 34rpx; height: 34rpx; box-sizing: border-box; align-items: center; justify-content: center; border: 2rpx solid #827b80; border-radius: 8rpx; background: rgba(255, 255, 255, 0.76); }
+.inventory-list__checkbox--checked { border-color: #6c43b1; background: #6c43b1; }
+.inventory-list__checkmark { color: #ffffff; font-size: 24rpx; font-weight: 700; line-height: 1; }
+.inventory-list__empty { margin-top: 20rpx; padding: 52rpx 28rpx; border: 2rpx dashed #ded3dc; border-radius: 22rpx; background: rgba(255, 253, 253, 0.72); color: #837a81; font-size: 23rpx; line-height: 1.55; text-align: center; }
+.inventory-list__cards { overflow-wrap: anywhere; }
 
-.item-list__heading,
-.item-card {
-  display: flex;
-  align-items: center;
-}
-
-.item-list__heading {
-  justify-content: space-between;
-  padding: 0 4rpx;
-}
-
-.item-list__title {
-  color: #1f2a3d;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.item-list__count {
-  color: #7a8496;
-  font-size: 22rpx;
-}
-
-.item-list__filters {
-  display: flex;
-  gap: 14rpx;
-  margin-top: 16rpx;
-}
-
-.item-list__filters input,
-.item-list__status-filter {
-  min-height: 66rpx;
-  box-sizing: border-box;
-  padding: 12rpx 18rpx;
-  border: 2rpx solid #dce2ea;
-  border-radius: 11rpx;
-  background: #ffffff;
-  color: #4c5870;
-  font-size: 22rpx;
-  line-height: 1.35;
-}
-
-.item-list__filters input {
-  min-width: 0;
-  flex: 1;
-}
-
-.item-list__filters picker {
-  width: 170rpx;
-}
-
-.item-list__empty {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  margin-top: 20rpx;
-  padding: 54rpx 34rpx;
-  border: 2rpx dashed #ccd4e0;
-  border-radius: 18rpx;
-  color: #788397;
-  text-align: center;
-}
-
-.item-list__empty-title {
-  color: #465168;
-  font-size: 27rpx;
-  font-weight: 600;
-}
-
-.item-list__empty-copy {
-  margin-top: 12rpx;
-  font-size: 23rpx;
-  line-height: 1.6;
-}
-
-.item-list__records {
-  margin-top: 18rpx;
-}
-
-.item-card {
-  align-items: flex-start;
-  flex-wrap: wrap;
-  min-height: 112rpx;
-  margin-bottom: 16rpx;
-  padding: 22rpx 20rpx 22rpx 24rpx;
-  border: 2rpx solid #e1e6ed;
-  border-radius: 16rpx;
-  background: #ffffff;
-}
-
-.item-card__copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.item-card__name {
-  min-width: 0;
-  flex: 1;
-  color: #263248;
-  font-size: 27rpx;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.item-card__name-line {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10rpx;
-}
-
-.item-card__status {
-  flex: none;
-  padding: 3rpx 8rpx;
-  border-radius: 6rpx;
-  background: #eceff4;
-  color: #747e8e;
-  font-size: 18rpx;
-}
-
-.item-card__note {
-  margin-top: 8rpx;
-  color: #858d9c;
-  font-size: 21rpx;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.item-card__quantity {
-  display: flex;
-  align-items: baseline;
-  max-width: 220rpx;
-  margin-left: 18rpx;
-  text-align: right;
-}
-
-.item-card__number {
-  color: #244f9e;
-  font-size: 33rpx;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.item-card__unit {
-  margin-left: 5rpx;
-  color: #68748a;
-  font-size: 21rpx;
-}
-
-.item-card__actions {
-  display: flex;
-  width: 100%;
-  flex-basis: 100%;
-  gap: 10rpx;
-  margin-top: 18rpx;
-  flex-wrap: wrap;
-}
-
-.item-card__action,
-.item-card__status-action,
-.item-card__delete-action {
-  width: auto;
-  min-width: 116rpx;
-  min-height: 68rpx;
-  flex: 1;
-  padding: 12rpx 14rpx;
-  border: 2rpx solid #9eb1d8;
-  border-radius: 12rpx;
-  background: #f5f7fc;
-  color: #31549e;
-  font-size: 23rpx;
-  line-height: 1.3;
-}
-
-.item-card__delete-action {
-  color: #9a4a47;
-}
-
-.item-card__status-action {
-  background: transparent;
-  color: #737d8e;
-  font-size: 21rpx;
+@media (max-width: 360px) {
+  .inventory-list__toolbar { gap: 12rpx; }
+  .inventory-list__search { padding-right: 18rpx; padding-left: 18rpx; }
+  .inventory-list__add { width: 152rpx; padding-right: 14rpx; padding-left: 14rpx; }
 }
 </style>

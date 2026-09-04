@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { shallowRef } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
 import BeautyProjectManagement from "@/features/beauty-project/components/BeautyProjectManagement.vue";
 import {
   acknowledgeQuickAddedInventoryItem,
+  beginQuickAddInventoryRequest,
+  cancelQuickAddInventoryRequest,
   peekQuickAddedInventoryItem,
 } from "@/features/beauty-project/quick-add-inventory-handoff";
 import {
@@ -22,11 +24,16 @@ const repository = createApplicationDataRepository({
   appVersion: APP_VERSION,
 });
 const service = createBeautyProjectManagementService({ repository });
-const management = ref<InstanceType<typeof BeautyProjectManagement> | null>(null);
+const management =
+  shallowRef<InstanceType<typeof BeautyProjectManagement> | null>(null);
 
+/** 打开独立库存新增页；保留当前项目表单实例与草稿。 */
 function openInventory(): void {
-  // navigateTo 保留当前项目表单实例，新增物品后返回不会丢失项目草稿。
-  uni.navigateTo({ url: "/pages/inventory/index?mode=project-quick-add" });
+  const requestId = beginQuickAddInventoryRequest();
+  uni.navigateTo({
+    url: `/pages/inventory-create/index?mode=project-quick-add&requestId=${encodeURIComponent(requestId)}`,
+    fail: () => cancelQuickAddInventoryRequest(requestId),
+  });
 }
 
 onShow(() => {
