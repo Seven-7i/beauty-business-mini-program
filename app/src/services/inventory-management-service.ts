@@ -10,7 +10,6 @@ import {
   assertInventoryItemCanBeDeleted,
   calculateOccupiedQuantity,
   createInventoryAdjustment,
-  rewriteManualInventoryMovement,
 } from "./inventory-service";
 import { parseDecimalQuantity } from "@/utils/decimal-quantity";
 
@@ -60,17 +59,6 @@ export interface UpdateInventoryItemProfileInput {
   /** 新计量单位；不改变原有数量精度规则。 */
   unit: string;
   /** 可选资料说明，空白值会被移除。 */
-  note?: string;
-}
-
-export interface RewriteManualInventoryMovementInput {
-  /** 被编辑或删除的手工变动标识。 */
-  movementId: string;
-  /** 编辑会保留记录，删除会移除记录并重放后续链。 */
-  operation: "edit" | "delete";
-  /** 编辑时按记录类型表示补货增加量或盘点后的实际库存。 */
-  quantityInput?: string;
-  /** 编辑后的可选说明。 */
   note?: string;
 }
 
@@ -279,42 +267,6 @@ export function createInventoryManagementService(
     });
   }
 
-  async function rewriteManualMovement(
-    input: RewriteManualInventoryMovementInput,
-  ): Promise<InventoryItemV1> {
-    const data = await readData();
-    const movement = data.inventoryMovements.find(
-      (candidate) => candidate.id === input.movementId,
-    );
-    if (!movement) {
-      throw new Error("库存变动记录不存在");
-    }
-    const item = data.inventoryItems.find(
-      (candidate) => candidate.id === movement.inventoryItemId,
-    );
-    if (!item) {
-      throw new Error("库存物品不存在");
-    }
-    const result = rewriteManualInventoryMovement({
-      item,
-      movements: data.inventoryMovements.filter(
-        (candidate) => candidate.inventoryItemId === item.id,
-      ),
-      appointments: data.appointments,
-      ...input,
-      updatedAt: now().toISOString(),
-    });
-    await repository.applyBusinessMutation({
-      kind: "rewrite-manual-inventory-movements",
-      item: result.item,
-      movements: result.movements,
-      expectedMovements: data.inventoryMovements
-        .filter((movement) => movement.inventoryItemId === result.item.id)
-        .map(({ id, updatedAt }) => ({ id, updatedAt })),
-    });
-    return result.item;
-  }
-
   return {
     readData,
     createInventoryItem,
@@ -322,7 +274,6 @@ export function createInventoryManagementService(
     updateInventoryItemProfile,
     setInventoryItemStatus,
     deleteInventoryItem,
-    rewriteManualMovement,
   };
 }
 

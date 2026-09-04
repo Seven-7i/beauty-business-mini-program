@@ -5,7 +5,6 @@ import RecoverableErrorNotice from "@/features/shared/components/RecoverableErro
 import type {
   AdjustInventoryInput,
   InventoryManagementService,
-  RewriteManualInventoryMovementInput,
 } from "@/services/inventory-management-service";
 import {
   filterInventoryMovementsForItem,
@@ -13,7 +12,6 @@ import {
   useInventoryManagement,
 } from "../composables/useInventoryManagement";
 import InventoryItemDetail from "./InventoryItemDetail.vue";
-import InventoryMovementEditForm from "./InventoryMovementEditForm.vue";
 
 /** 独立物品详情页的业务输入。 */
 interface InventoryItemDetailPageProps {
@@ -50,10 +48,8 @@ const {
   refresh,
   setItemStatus,
   deleteItem,
-  rewriteMovement,
 } = useInventoryManagement({ service: props.service });
 const activeTab = shallowRef<InventoryItemDetailTab>("activity");
-const selectedMovement = shallowRef<InventoryMovementV1>();
 const item = computed(() =>
   items.value.find((candidate) => candidate.id === props.inventoryItemId),
 );
@@ -68,7 +64,6 @@ const itemMovements = computed(() =>
     props.inventoryItemId,
   ),
 );
-const showingDetail = computed(() => !selectedMovement.value);
 
 /** 非字段错误出现时把视口带到页面级说明。 */
 async function scrollToErrorNotice(): Promise<void> {
@@ -161,52 +156,6 @@ function confirmDeleteItem(): void {
   });
 }
 
-/** 打开一条手工库存动态的更正表单。 */
-function editMovement(movement: InventoryMovementV1): void {
-  selectedMovement.value = movement;
-}
-
-/** 保存手工动态更正后返回当前物品的动态 Tab。 */
-async function handleMovementEdit(
-  input: RewriteManualInventoryMovementInput,
-): Promise<void> {
-  if (await rewriteMovement(input)) {
-    selectedMovement.value = undefined;
-    activeTab.value = "activity";
-    uni.showToast({ title: "库存动态已更新", icon: "none" });
-  } else {
-    await scrollToErrorNotice();
-  }
-}
-
-/** 二次确认后删除手工动态，并由服务重算后续库存结余。 */
-function confirmDeleteMovement(movement: InventoryMovementV1): void {
-  uni.showModal({
-    title: "删除这条手工库存动态？",
-    content: "删除后会重新计算后续库存结余；若低于预约占用，系统会阻止删除。",
-    confirmText: "删除重算",
-    confirmColor: "#A94442",
-    success(result) {
-      if (result.confirm) {
-        void rewriteMovement({
-          movementId: movement.id,
-          operation: "delete",
-        }).then((deleted) => {
-          if (deleted) {
-            activeTab.value = "activity";
-            uni.showToast({ title: "库存动态已删除", icon: "none" });
-          } else {
-            void scrollToErrorNotice();
-          }
-        });
-      }
-    },
-    fail() {
-      uni.showToast({ title: "确认框打开失败", icon: "none" });
-    },
-  });
-}
-
 /** 从预约消耗动态进入来源预约的完成信息。 */
 function openSourceAppointment(movement: InventoryMovementV1): void {
   if (!movement.appointmentId || movement.appointmentDeleted) {
@@ -260,17 +209,8 @@ defineExpose(exposed);
       <text>库存物品不存在，可能已被删除。</text>
       <button @click="emit('back')">返回库存列表</button>
     </view>
-    <InventoryMovementEditForm
-      v-else-if="summary && selectedMovement"
-      class="inventory-detail-page__panel"
-      :movement="selectedMovement"
-      :item="summary.item"
-      :submitting="submitting"
-      @submit="handleMovementEdit"
-      @cancel="selectedMovement = undefined"
-    />
     <InventoryItemDetail
-      v-else-if="summary && showingDetail"
+      v-else-if="summary"
       :summary="summary"
       :movements="itemMovements"
       :active-tab="activeTab"
@@ -280,8 +220,6 @@ defineExpose(exposed);
       @toggle-status="toggleStatus"
       @delete-item="confirmDeleteItem"
       @adjust="openAdjustment"
-      @edit-movement="editMovement"
-      @delete-movement="confirmDeleteMovement"
       @open-appointment="openSourceAppointment"
     />
   </main>
@@ -292,13 +230,11 @@ defineExpose(exposed);
 .inventory-detail-page__glow { position: absolute; z-index: 0; border-radius: 999rpx; pointer-events: none; }
 .inventory-detail-page__glow--rose { top: -130rpx; right: -180rpx; width: 500rpx; height: 500rpx; background: radial-gradient(circle, rgba(244, 205, 220, 0.48) 0%, rgba(244, 205, 220, 0) 70%); }
 .inventory-detail-page__glow--lavender { top: 20rpx; right: -140rpx; width: 420rpx; height: 330rpx; background: radial-gradient(circle, rgba(219, 198, 237, 0.4) 0%, rgba(219, 198, 237, 0) 72%); }
-.inventory-detail-page__notice, .inventory-detail-page__loading, .inventory-detail-page__missing, .inventory-detail-page__panel { position: relative; z-index: 2; }
+.inventory-detail-page__notice, .inventory-detail-page__loading, .inventory-detail-page__missing { position: relative; z-index: 2; }
 .inventory-detail-page__notice { margin-bottom: 20rpx; }
 .inventory-detail-page__loading { padding: 30rpx 24rpx; border: 2rpx solid rgba(137, 106, 128, 0.08); border-radius: 20rpx; background: rgba(255, 255, 255, 0.92); color: #766e74; font-size: 23rpx; text-align: center; }
 .inventory-detail-page__missing { display: flex; flex-direction: column; align-items: center; gap: 22rpx; padding: 38rpx 28rpx; border: 2rpx solid #ead6d8; border-radius: 24rpx; background: rgba(255, 248, 248, 0.94); color: #934c54; font-size: 23rpx; line-height: 1.55; text-align: center; }
 .inventory-detail-page__missing button { min-width: 240rpx; min-height: 76rpx; margin: 0; padding: 16rpx 28rpx; border-radius: 999rpx; background: #6a3cb3; color: #fff; font-size: 24rpx; line-height: 1.3; }
-.inventory-detail-page__panel { margin-top: 0; }
-
 @media (max-width: 360px) {
   .inventory-detail-page { padding-right: 24rpx; padding-left: 24rpx; }
 }

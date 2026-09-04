@@ -33,10 +33,6 @@ interface InventoryItemDetailEmits {
   deleteItem: [];
   /** 请求以指定方式调整库存。 */
   adjust: [kind: "restock" | "stocktake"];
-  /** 请求更正一条手工库存记录。 */
-  editMovement: [movement: InventoryMovementV1];
-  /** 请求删除一条手工库存记录。 */
-  deleteMovement: [movement: InventoryMovementV1];
   /** 请求查看预约消耗的来源预约。 */
   openAppointment: [movement: InventoryMovementV1];
 }
@@ -76,8 +72,6 @@ const emit = defineEmits<InventoryItemDetailEmits>();
         :item="summary.item"
         :movements="movements"
         :disabled="disabled"
-        @edit="emit('editMovement', $event)"
-        @delete="emit('deleteMovement', $event)"
         @open-appointment="emit('openAppointment', $event)"
       />
     </view>

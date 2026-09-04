@@ -219,7 +219,7 @@ describe("业务数据变更命令", () => {
     ).toThrow("已被其他操作更新");
   });
 
-  it("盘点和手工链重放都按最新待执行预约占用复核库存下限", () => {
+  it("盘点按最新待执行预约占用复核库存下限", () => {
     const occupiedAppointment = {
       id: "appointment-occupied",
       customerId: customer.id,
@@ -278,20 +278,6 @@ describe("业务数据变更命令", () => {
       applyBusinessDataMutation(
         current,
         { kind: "commit-inventory-adjustment", item: reducedItem, movement: stocktake },
-        NOW,
-      ),
-    ).toThrow("低于最新待执行预约占用");
-    expect(() =>
-      applyBusinessDataMutation(
-        current,
-        {
-          kind: "rewrite-manual-inventory-movements",
-          item: reducedItem,
-          movements: [{ ...initialMovement, deltaQuantity: "5", afterQuantity: "5" }],
-          expectedMovements: [
-            { id: initialMovement.id, updatedAt: initialMovement.updatedAt },
-          ],
-        },
         NOW,
       ),
     ).toThrow("低于最新待执行预约占用");
@@ -549,79 +535,6 @@ describe("业务数据变更命令", () => {
     ).toEqual([]);
   });
 
-  it("手工变动重放原子替换物品数量与该物品变动链", () => {
-    const withItem = applyBusinessDataMutation(
-      emptyData(),
-      {
-        kind: "upsert-inventory-item",
-        item: { ...item, currentQuantity: "10" },
-      },
-      NOW,
-    );
-    const current = applyBusinessDataMutation(
-      withItem,
-      { kind: "commit-inventory-adjustment", item, movement },
-      NOW,
-    );
-    const rewrittenMovement = {
-      ...movement,
-      deltaQuantity: "3",
-      afterQuantity: "13",
-    };
-
-    const next = applyBusinessDataMutation(
-      current,
-      {
-        kind: "rewrite-manual-inventory-movements",
-        item: { ...item, currentQuantity: "13" },
-        movements: [rewrittenMovement],
-        expectedMovements: [{ id: movement.id, updatedAt: movement.updatedAt }],
-      },
-      NOW,
-    );
-
-    expect(next.inventoryItems[0]?.currentQuantity).toBe("13");
-    expect(next.inventoryMovements[0]).toMatchObject({
-      ...rewrittenMovement,
-      updatedAt: expect.any(String),
-    });
-    expect(
-      next.inventoryMovements[0]!.updatedAt > rewrittenMovement.updatedAt,
-    ).toBe(true);
-  });
-
-  it("手工变动重放拒绝删除读取后并发新增的库存记录", () => {
-    const concurrentMovement: InventoryMovementV1 = {
-      ...movement,
-      id: "movement-concurrent",
-      beforeQuantity: "12",
-      deltaQuantity: "1",
-      afterQuantity: "13",
-      updatedAt: "2026-08-08T09:30:00.000Z",
-    };
-    const current = {
-      ...emptyData(),
-      inventoryItems: [{ ...item, currentQuantity: "13" }],
-      inventoryMovements: [movement, concurrentMovement],
-    };
-
-    expect(() =>
-      applyBusinessDataMutation(
-        current,
-        {
-          kind: "rewrite-manual-inventory-movements",
-          item,
-          movements: [movement],
-          expectedMovements: [
-            { id: movement.id, updatedAt: movement.updatedAt },
-          ],
-        },
-        NOW,
-      ),
-    ).toThrow("已被其他操作更新");
-    expect(current.inventoryMovements).toHaveLength(2);
-  });
-
   it("项目和顾客更新使用读取版本，拒绝资料与状态互相覆盖", () => {
     const current = {
       ...emptyData(),
@@ -767,106 +680,6 @@ describe("业务数据变更命令", () => {
         NOW,
       ),
     ).toThrow("服务项目资料已变化");
-  });
-
-  it("手工变动重放不能篡改预约消耗记录", () => {
-    const appointmentMovement: InventoryMovementV1 = {
-      ...movement,
-      id: "appointment-movement",
-      type: "appointment-consumption",
-      beforeQuantity: "12",
-      deltaQuantity: "-2",
-      afterQuantity: "10",
-      appointmentId: "deleted-appointment",
-      appointmentDeleted: true,
-    };
-    const current = {
-      ...emptyData(),
-      inventoryItems: [{ ...item, currentQuantity: "10" }],
-      inventoryMovements: [appointmentMovement],
-    };
-
-    expect(() =>
-      applyBusinessDataMutation(
-        current,
-        {
-          kind: "rewrite-manual-inventory-movements",
-          item: { ...item, currentQuantity: "9" },
-          movements: [
-            { ...appointmentMovement, deltaQuantity: "-3", afterQuantity: "9" },
-          ],
-          expectedMovements: [
-            { id: appointmentMovement.id, updatedAt: appointmentMovement.updatedAt },
-          ],
-        },
-        NOW,
-      ),
-    ).toThrow("预约消耗记录不能");
-  });
-
-  it("手工记录变化时允许重算预约消耗的前后结余但保持消耗差额", () => {
-    const initialMovement: InventoryMovementV1 = {
-      id: "initial-movement",
-      inventoryItemId: "item-1",
-      type: "initial",
-      beforeQuantity: "0",
-      deltaQuantity: "10",
-      afterQuantity: "10",
-      occurredAt: "2026-08-08T08:00:00.000Z",
-      appointmentDeleted: false,
-      createdAt: NOW,
-      updatedAt: NOW,
-      schemaVersion: 1,
-    };
-    const appointmentMovement: InventoryMovementV1 = {
-      id: "appointment-movement",
-      inventoryItemId: "item-1",
-      type: "appointment-consumption",
-      beforeQuantity: "10",
-      deltaQuantity: "-2",
-      afterQuantity: "8",
-      occurredAt: "2026-08-08T09:00:00.000Z",
-      appointmentId: "deleted-appointment",
-      appointmentDeleted: true,
-      createdAt: NOW,
-      updatedAt: NOW,
-      schemaVersion: 1,
-    };
-    const current = {
-      ...emptyData(),
-      inventoryItems: [{ ...item, currentQuantity: "8" }],
-      inventoryMovements: [initialMovement, appointmentMovement],
-    };
-
-    const next = applyBusinessDataMutation(
-      current,
-      {
-        kind: "rewrite-manual-inventory-movements",
-        item: { ...item, currentQuantity: "10" },
-        movements: [
-          {
-            ...initialMovement,
-            deltaQuantity: "12",
-            afterQuantity: "12",
-          },
-          {
-            ...appointmentMovement,
-            beforeQuantity: "12",
-            afterQuantity: "10",
-          },
-        ],
-        expectedMovements: [initialMovement, appointmentMovement].map(
-          ({ id, updatedAt }) => ({ id, updatedAt }),
-        ),
-      },
-      NOW,
-    );
-
-    expect(next.inventoryMovements[1]).toMatchObject({
-      beforeQuantity: "12",
-      deltaQuantity: "-2",
-      afterQuantity: "10",
-    });
   });
 
   it("取消待执行预约只释放派生占用，不修改库存或新增变动", () => {

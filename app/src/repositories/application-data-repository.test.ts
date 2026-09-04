@@ -655,57 +655,6 @@ describe("应用完整数据仓储", () => {
     await expect(repository.readSnapshot()).resolves.toEqual(previous);
   });
 
-  it("手工变动链重写失败时恢复原库存与原记录", async () => {
-    const { repository, storage } = createRepository();
-    const previous = createData("item-1", "精华液");
-    previous.inventoryMovements = [
-      {
-        id: "movement-1",
-        inventoryItemId: "item-1",
-        type: "initial",
-        beforeQuantity: "0",
-        deltaQuantity: "10.5",
-        afterQuantity: "10.5",
-        occurredAt: NOW.toISOString(),
-        appointmentDeleted: false,
-        createdAt: NOW.toISOString(),
-        updatedAt: NOW.toISOString(),
-        schemaVersion: 1,
-      },
-    ];
-    await repository.replaceSnapshot(previous);
-    let failed = false;
-    storage.failSet = (key) => {
-      if (!failed && key === "bm:entity:inventory-movement:movement-1") {
-        failed = true;
-        return new Error("setStorage:fail rewrite interrupted");
-      }
-      return undefined;
-    };
-
-    await expect(
-      repository.applyBusinessMutation({
-        kind: "rewrite-manual-inventory-movements",
-        item: {
-          ...previous.inventoryItems[0],
-          currentQuantity: "12",
-        },
-        movements: [
-          {
-            ...previous.inventoryMovements[0],
-            deltaQuantity: "12",
-            afterQuantity: "12",
-          },
-        ],
-        expectedMovements: previous.inventoryMovements.map(
-          ({ id, updatedAt }) => ({ id, updatedAt }),
-        ),
-      }),
-    ).rejects.toThrow("rewrite interrupted");
-
-    await expect(repository.readSnapshot()).resolves.toEqual(previous);
-  });
-
   it("业务命令与即时回滚都中断时，下次仓储读取继续恢复原数据", async () => {
     const { repository, storage, files } = createRepository();
     const previous = createData("item-1", "精华液");

@@ -14,10 +14,6 @@ interface InventoryMovementListProps {
 
 /** 库存动态时间线向详情容器暴露的记录操作。 */
 interface InventoryMovementListEmits {
-  /** 请求更正一条手工库存记录。 */
-  edit: [movement: InventoryMovementV1];
-  /** 请求删除一条手工库存记录并重算后续结余。 */
-  delete: [movement: InventoryMovementV1];
   /** 请求查看预约消耗的来源预约。 */
   openAppointment: [movement: InventoryMovementV1];
 }
@@ -44,11 +40,6 @@ const movementLabels: Record<InventoryMovementV1["type"], string> = {
   stocktake: "盘点修正",
   "appointment-consumption": "预约消耗",
 };
-
-/** 手工产生的记录可以按现有业务规则更正或删除。 */
-function isManualMovement(movement: InventoryMovementV1): boolean {
-  return movement.type !== "appointment-consumption";
-}
 
 /** 正数补齐加号，负数保留数据自身符号。 */
 function formatDelta(value: string): string {
@@ -101,15 +92,6 @@ function formatOccurredAt(value: string): string {
               <text class="movement-row__time">
                 {{ formatOccurredAt(movement.occurredAt) }}
               </text>
-            </view>
-            <view v-if="isManualMovement(movement)" class="movement-row__actions">
-              <button :disabled="disabled" @click="emit('edit', movement)">
-                编辑
-              </button>
-              <view class="movement-row__action-divider" aria-hidden="true" />
-              <button :disabled="disabled" @click="emit('delete', movement)">
-                删除
-              </button>
             </view>
           </view>
           <text
@@ -169,14 +151,10 @@ function formatOccurredAt(value: string): string {
 .movement-row__dot--appointment { background: #8664c6; box-shadow: 0 0 0 2rpx #8664c6; }
 .movement-row__content { min-width: 0; flex: 1; padding: 26rpx 0 24rpx 8rpx; border-bottom: 2rpx solid rgba(137, 123, 132, 0.14); }
 .movement-row:last-child .movement-row__content { border-bottom: 0; }
-.movement-row__heading, .movement-row__identity, .movement-row__actions, .movement-row__source { display: flex; align-items: center; }
-.movement-row__heading { justify-content: space-between; gap: 16rpx; }
+.movement-row__heading, .movement-row__identity, .movement-row__source { display: flex; align-items: center; }
 .movement-row__identity { min-width: 0; gap: 16rpx; flex-wrap: wrap; }
 .movement-row__type { color: #292428; font-size: 26rpx; font-weight: 700; }
 .movement-row__time { color: #918a90; font-size: 20rpx; font-variant-numeric: tabular-nums; }
-.movement-row__actions { flex: none; gap: 12rpx; }
-.movement-row__actions button { min-height: 56rpx; margin: 0; padding: 8rpx 4rpx; border: 0; background: transparent; color: #6a43b0; font-size: 21rpx; line-height: 1.2; }
-.movement-row__action-divider { width: 2rpx; height: 24rpx; background: rgba(137, 123, 132, 0.2); }
 .movement-row__delta, .movement-row__balance, .movement-row__note { display: block; overflow-wrap: anywhere; }
 .movement-row__delta { margin-top: 12rpx; color: #4c9f71; font-size: 28rpx; font-weight: 650; font-variant-numeric: tabular-nums; }
 .movement-row__delta--decrease { color: #d45d68; }
@@ -188,7 +166,5 @@ function formatOccurredAt(value: string): string {
 
 @media (max-width: 360px) {
   .movement-row { padding-right: 22rpx; }
-  .movement-row__heading { align-items: flex-start; }
-  .movement-row__actions { gap: 8rpx; }
 }
 </style>

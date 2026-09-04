@@ -989,7 +989,6 @@ export function createApplicationDataRepository(
           switch (mutation.kind) {
             case "commit-inventory-adjustment":
             case "delete-unreferenced-inventory-item":
-            case "rewrite-manual-inventory-movements":
               return ["inventoryItems", "inventoryMovements"];
             case "upsert-inventory-item":
               return ["inventoryItems"];

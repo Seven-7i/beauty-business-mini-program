@@ -9,7 +9,6 @@ import type {
   AdjustInventoryInput,
   CreateInventoryItemInput,
   InventoryManagementService,
-  RewriteManualInventoryMovementInput,
   UpdateInventoryItemProfileInput,
 } from "@/services/inventory-management-service";
 import {
@@ -192,12 +191,6 @@ export function useInventoryManagement(
     );
   }
 
-  function rewriteMovement(
-    input: RewriteManualInventoryMovementInput,
-  ): Promise<boolean> {
-    return runMutation(() => options.service.rewriteManualMovement(input));
-  }
-
   return {
     items: readonly(items),
     activeItems,
@@ -214,6 +207,5 @@ export function useInventoryManagement(
     updateItemProfile,
     setItemStatus,
     deleteItem,
-    rewriteMovement,
   };
 }

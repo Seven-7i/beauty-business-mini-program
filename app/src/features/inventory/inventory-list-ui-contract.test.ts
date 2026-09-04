@@ -80,6 +80,11 @@ describe("库存物品列表定稿契约", () => {
     expect(timeline).toContain("查看来源预约");
     expect(timeline).toContain("来源预约已删除");
     expect(timeline).not.toContain("props.items.find");
+    expect(timeline).not.toContain("movement-row__actions");
+    expect(timeline).not.toContain("emit('edit'");
+    expect(timeline).not.toContain("emit('delete'");
+    expect(detailPage).not.toContain("InventoryMovementEditForm");
+    expect(detailPage).not.toContain("rewriteMovement");
   });
 
   it("预约消耗从物品动态进入对应来源预约", () => {
