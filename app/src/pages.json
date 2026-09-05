@@ -84,7 +84,23 @@
 			"path": "pages/beauty-project/index",
 			"style": {
 				"navigationBarTitleText": "服务项目",
-				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/beauty-project-create/index",
+			"style": {
+				"navigationBarTitleText": "新增服务项目",
+				"navigationBarBackgroundColor": "#FFF8FA",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/beauty-project-detail/index",
+			"style": {
+				"navigationBarTitleText": "项目详情",
+				"navigationBarBackgroundColor": "#FFF8FA",
 				"navigationBarTextStyle": "black"
 			}
 		},

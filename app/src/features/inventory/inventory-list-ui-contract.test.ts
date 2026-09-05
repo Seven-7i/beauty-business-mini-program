@@ -30,7 +30,7 @@ describe("库存物品列表定稿契约", () => {
     expect(list).toContain("仅看停用");
     expect(list).not.toContain("全部状态");
     expect(list).toContain('name="search"');
-    expect(list).toContain('name="plus"');
+    expect(list).toContain('<u-icon name="plus" color="#FFFFFF" size="14" />');
   });
 
   it("卡片展示三项库存数据并保留两个明确的调整入口", () => {
@@ -71,12 +71,16 @@ describe("库存物品列表定稿契约", () => {
     const pages = readSource("../../pages.json");
     const detailPage = readSource("./components/InventoryItemDetailPage.vue");
     const detail = readSource("./components/InventoryItemDetail.vue");
+    const profile = readSource("./components/InventoryItemProfileDetails.vue");
     const timeline = readSource("./components/InventoryMovementList.vue");
 
     expect(pages).toContain('"path": "pages/inventory-detail/index"');
     expect(detailPage).toContain("filterInventoryMovementsForItem");
     expect(detail).toContain("库存动态");
     expect(detail).toContain("物品资料");
+    expect(profile).toContain(":name=\"item.status === 'active' ? 'pause-circle' : 'play-circle'\"");
+    expect(profile).toContain('<u-icon name="trash" color="#D92E56" size="20" />');
+    expect(profile.match(/name="arrow-right" color="#817A80" size="16"/g)).toHaveLength(2);
     expect(timeline).toContain("查看来源预约");
     expect(timeline).toContain("来源预约已删除");
     expect(timeline).not.toContain("props.items.find");
@@ -116,7 +120,7 @@ describe("库存物品列表定稿契约", () => {
     expect(management).toContain("inventory-management__list-view");
     expect(createPage).toContain("useInventoryFormLifecycle");
     expect(createPage).toContain("<InventoryItemForm");
-    expect(createRoute).toContain("resolveInventoryCreateQuickAddMode");
+    expect(createRoute).toContain("resolveInventoryCreateQuickAddRequestId");
     expect(createRoute).toContain("completeInventoryCreateNavigation");
     expect(createForm).not.toContain("item-form__heading");
     expect(createForm).not.toContain(">取消<");

@@ -72,7 +72,7 @@ function toggleInactiveOnly(): void {
         :hover-stay-time="80"
         @click="emit('add')"
       >
-        <u-icon name="plus" color="#FFFFFF" size="22" />
+        <u-icon name="plus" color="#FFFFFF" size="14" />
         <text>新增</text>
       </button>
     </view>

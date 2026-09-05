@@ -18,4 +18,15 @@ describe("项目快速新增库存回传", () => {
     acknowledgeQuickAddedInventoryItem("item-new");
     expect(peekQuickAddedInventoryItem()).toBeUndefined();
   });
+
+  it("不同项目编辑器不能领取或清除彼此的快速新增结果", () => {
+    publishQuickAddedInventoryItem("item-owned", "request-owner");
+
+    expect(peekQuickAddedInventoryItem("request-other")).toBeUndefined();
+    acknowledgeQuickAddedInventoryItem("item-owned", "request-other");
+    expect(peekQuickAddedInventoryItem("request-owner")).toBe("item-owned");
+
+    acknowledgeQuickAddedInventoryItem("item-owned", "request-owner");
+    expect(peekQuickAddedInventoryItem("request-owner")).toBeUndefined();
+  });
 });

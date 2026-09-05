@@ -7,6 +7,7 @@ import {
   peekQuickAddedInventoryItem,
   prepareLegacyInventoryQuickAddRedirect,
   resolveInventoryCreateQuickAddMode,
+  resolveInventoryCreateQuickAddRequestId,
   type InventoryCreateNavigationRuntime,
 } from "@/features/beauty-project/quick-add-inventory-handoff";
 
@@ -57,6 +58,26 @@ describe("库存物品独立新增导航", () => {
         1,
       ),
     ).toBe(false);
+  });
+
+  it("把快速新增结果绑定到发起它的项目编辑器请求", () => {
+    const requestId = beginQuickAddInventoryRequest();
+    const acceptedRequestId = resolveInventoryCreateQuickAddRequestId(
+      { mode: "project-quick-add", requestId },
+      2,
+    );
+    const navigation = createRuntime(2);
+
+    completeInventoryCreateNavigation(
+      "inventory-owned",
+      acceptedRequestId,
+      navigation.runtime,
+    );
+
+    expect(peekQuickAddedInventoryItem("another-editor")).toBeUndefined();
+    expect(peekQuickAddedInventoryItem(requestId)).toBe("inventory-owned");
+    acknowledgeQuickAddedInventoryItem("inventory-owned", requestId);
+    expect(peekQuickAddedInventoryItem(requestId)).toBeUndefined();
   });
 
   it("导航失败后撤销来源请求，未知请求也按普通新增处理", () => {

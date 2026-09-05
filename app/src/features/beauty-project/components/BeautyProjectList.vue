@@ -1,258 +1,135 @@
 <script setup lang="ts">
-import { computed, shallowRef, type DeepReadonly } from "vue";
+import { computed, shallowRef } from "vue";
 import type { BeautyProjectV1, InventoryItemV1 } from "@/domain/data-schema";
+import { filterBeautyProjects } from "../composables/useBeautyProjectManagement";
+import BeautyProjectCard from "./BeautyProjectCard.vue";
 
-const props = defineProps<{
-  projects: readonly DeepReadonly<BeautyProjectV1>[];
+/** 服务项目列表的只读展示输入。 */
+interface BeautyProjectListProps {
+  /** 已按状态和名称排序的全部服务项目。 */
+  projects: readonly BeautyProjectV1[];
+  /** 用于将默认用量标识解析为业务名称和单位。 */
   inventoryItems: readonly InventoryItemV1[];
+  /** 页面读取或提交期间禁止重复进入。 */
   disabled: boolean;
-}>();
+}
 
-const emit = defineEmits<{
-  (event: "edit", project: DeepReadonly<BeautyProjectV1>): void;
-  (event: "toggle-status", project: DeepReadonly<BeautyProjectV1>): void;
-  (event: "delete", project: DeepReadonly<BeautyProjectV1>): void;
-}>();
+/** 服务项目列表向页面编排层暴露的操作。 */
+interface BeautyProjectListEmits {
+  /** 请求打开独立新增服务项目表单。 */
+  add: [];
+  /** 请求进入指定服务项目详情。 */
+  view: [project: BeautyProjectV1];
+}
 
-const activeCount = computed(
-  () => props.projects.filter((project) => project.status === "active").length,
+const props = defineProps<BeautyProjectListProps>();
+const emit = defineEmits<BeautyProjectListEmits>();
+const keyword = shallowRef("");
+const inactiveOnly = shallowRef(false);
+const visibleProjects = computed(() =>
+  filterBeautyProjects(props.projects, keyword.value, inactiveOnly.value),
 );
-const query = shallowRef("");
-const statusFilter = shallowRef<"all" | "active" | "inactive">("all");
-const statusOptions = ["全部状态", "仅启用", "仅停用"];
-const visibleProjects = computed(() => {
-  const normalizedQuery = query.value.trim();
-  return props.projects.filter(
-    (project) =>
-      (statusFilter.value === "all" || project.status === statusFilter.value) &&
-      (!normalizedQuery || project.name.includes(normalizedQuery)),
-  );
+const emptyMessage = computed(() => {
+  if (keyword.value.trim()) {
+    return inactiveOnly.value
+      ? "没有符合搜索条件的停用项目"
+      : "没有符合搜索条件的启用项目";
+  }
+  return inactiveOnly.value
+    ? "暂无停用服务项目"
+    : "还没有启用服务项目，点击“新增”添加第一项服务";
 });
 
-function selectStatus(event: { detail: { value: string } }): void {
-  const index = Number(event.detail.value);
-  statusFilter.value = index === 1 ? "active" : index === 2 ? "inactive" : "all";
-}
-
-function formatPrice(cents: number): string {
-  return `￥${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
-}
-
-function usageSummary(project: DeepReadonly<BeautyProjectV1>): string {
-  if (project.defaultUsages.length === 0) {
-    return "未设置默认物品用量";
-  }
-  return project.defaultUsages
-    .map((usage) => {
-      const item = props.inventoryItems.find(
-        (candidate) => candidate.id === usage.inventoryItemId,
-      );
-      return item
-        ? `${item.name} ${usage.quantity}${item.unit}`
-        : `已停用物品 ${usage.quantity}`;
-    })
-    .join(" · ");
+/** 在互斥的启用项目与停用项目范围之间切换。 */
+function toggleInactiveOnly(): void {
+  inactiveOnly.value = !inactiveOnly.value;
 }
 </script>
 
 <template>
-  <view class="project-list">
-    <view class="project-list__heading">
-      <text class="project-list__title">当前项目</text>
-      <text class="project-list__count">{{ activeCount }} 个启用项目</text>
+  <section class="project-list" aria-label="服务项目列表">
+    <view class="project-list__toolbar">
+      <label class="project-list__search">
+        <u-icon name="search" color="#777078" size="20" />
+        <input
+          v-model="keyword"
+          class="project-list__search-input"
+          maxlength="40"
+          placeholder="搜索项目名称"
+          placeholder-style="color:#938c92"
+          confirm-type="search"
+        />
+      </label>
+      <button
+        class="project-list__add"
+        :disabled="disabled"
+        aria-label="新增服务项目"
+        hover-class="project-list__add--pressed"
+        :hover-start-time="20"
+        :hover-stay-time="80"
+        @click="emit('add')"
+      >
+        <u-icon name="plus" color="#FFFFFF" size="14" />
+        <text>新增</text>
+      </button>
     </view>
-    <view class="project-list__filters">
-      <input v-model="query" maxlength="40" placeholder="搜索项目名称" />
-      <picker :range="statusOptions" @change="selectStatus">
-        <view class="project-list__status-filter">
-          {{ statusFilter === "active" ? "仅启用" : statusFilter === "inactive" ? "仅停用" : "全部状态" }}
+
+    <view class="project-list__scope">
+      <text class="project-list__count">{{ visibleProjects.length }} 项</text>
+      <button
+        class="project-list__inactive-toggle"
+        role="checkbox"
+        :aria-checked="inactiveOnly"
+        :disabled="disabled"
+        @click="toggleInactiveOnly"
+      >
+        <view
+          class="project-list__checkbox"
+          :class="{ 'project-list__checkbox--checked': inactiveOnly }"
+          aria-hidden="true"
+        >
+          <text v-if="inactiveOnly" class="project-list__checkmark">✓</text>
         </view>
-      </picker>
+        <text>仅看停用</text>
+      </button>
     </view>
-    <view v-if="projects.length === 0" class="project-list__empty">
-      还没有服务项目，新增后即可用于后续预约。
+
+    <view v-if="!visibleProjects.length" class="project-list__empty" role="status">
+      {{ emptyMessage }}
     </view>
-    <view v-else-if="visibleProjects.length === 0" class="project-list__empty">
-      没有符合当前搜索和状态条件的项目。
+    <view v-else class="project-list__cards">
+      <BeautyProjectCard
+        v-for="project in visibleProjects"
+        :key="project.id"
+        :project="project"
+        :inventory-items="inventoryItems"
+        :disabled="disabled"
+        @view="emit('view', $event)"
+      />
     </view>
-    <view v-else class="project-list__records">
-      <view v-for="project in visibleProjects" :key="project.id" class="project-card">
-        <view class="project-card__top">
-          <view class="project-card__name-line">
-            <text class="project-card__name">{{ project.name }}</text>
-            <text v-if="project.status === 'inactive'" class="project-card__status">已停用</text>
-          </view>
-          <text class="project-card__price">{{ formatPrice(project.standardPriceCents) }}</text>
-        </view>
-        <text class="project-card__duration">预计 {{ project.durationMinutes }} 分钟</text>
-        <text class="project-card__usage">{{ usageSummary(project) }}</text>
-        <view class="project-card__actions">
-          <button :disabled="disabled" @click="emit('edit', project)">编辑</button>
-          <button :disabled="disabled" @click="emit('toggle-status', project)">
-            {{ project.status === "active" ? "停用" : "启用" }}
-          </button>
-          <button class="project-card__delete" :disabled="disabled" @click="emit('delete', project)">
-            删除
-          </button>
-        </view>
-      </view>
-    </view>
-  </view>
+  </section>
 </template>
 
 <style scoped>
-.project-list {
-  margin-top: 34rpx;
-}
+.project-list { position: relative; z-index: 1; }
+.project-list__toolbar, .project-list__search, .project-list__add, .project-list__scope, .project-list__inactive-toggle { display: flex; align-items: center; }
+.project-list__toolbar { gap: 18rpx; }
+.project-list__search { min-width: 0; height: 88rpx; box-sizing: border-box; flex: 1; gap: 16rpx; padding: 0 24rpx; border: 2rpx solid rgba(137, 106, 128, 0.08); border-radius: 22rpx; background: rgba(255, 255, 255, 0.94); box-shadow: 0 12rpx 34rpx rgba(111, 75, 101, 0.06); }
+.project-list__search-input { min-width: 0; height: 84rpx; flex: 1; color: #332f33; font-size: 25rpx; }
+.project-list__add { width: 164rpx; min-height: 88rpx; flex: none; justify-content: center; gap: 8rpx; margin: 0; padding: 0 18rpx; border: 0; border-radius: 22rpx; background: linear-gradient(135deg, #7853b9 0%, #6437aa 100%); box-shadow: 0 14rpx 30rpx rgba(102, 59, 161, 0.22); color: #ffffff; font-size: 25rpx; font-weight: 600; line-height: 1; transition: opacity 120ms ease, transform 120ms ease; }
+.project-list__add--pressed { opacity: 0.88; transform: scale(0.98); }
+.project-list__scope { min-height: 76rpx; justify-content: space-between; gap: 18rpx; margin-top: 28rpx; padding: 0 2rpx; flex-wrap: wrap; }
+.project-list__count { color: #6f45b5; font-size: 25rpx; font-weight: 600; }
+.project-list__inactive-toggle { min-height: 68rpx; flex: none; gap: 12rpx; margin: 0; padding: 8rpx 0 8rpx 16rpx; border: 0; background: transparent; color: #413b40; font-size: 24rpx; line-height: 1.2; }
+.project-list__checkbox { display: flex; width: 34rpx; height: 34rpx; box-sizing: border-box; align-items: center; justify-content: center; border: 2rpx solid #827b80; border-radius: 8rpx; background: rgba(255, 255, 255, 0.76); }
+.project-list__checkbox--checked { border-color: #6c43b1; background: #6c43b1; }
+.project-list__checkmark { color: #ffffff; font-size: 24rpx; font-weight: 700; line-height: 1; }
+.project-list__empty { margin-top: 20rpx; padding: 52rpx 28rpx; border: 2rpx dashed #ded3dc; border-radius: 22rpx; background: rgba(255, 253, 253, 0.72); color: #837a81; font-size: 23rpx; line-height: 1.55; text-align: center; }
+.project-list__cards { overflow-wrap: anywhere; }
 
-.project-list__heading,
-.project-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.project-card__top {
-  align-items: flex-start;
-  gap: 16rpx;
-}
-
-.project-list__title {
-  color: #1f2a3d;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.project-list__count {
-  color: #7a8496;
-  font-size: 22rpx;
-}
-
-.project-list__filters {
-  display: flex;
-  gap: 14rpx;
-  margin-top: 16rpx;
-}
-
-.project-list__filters input,
-.project-list__status-filter {
-  min-height: 66rpx;
-  box-sizing: border-box;
-  padding: 12rpx 18rpx;
-  border: 2rpx solid #dce2ea;
-  border-radius: 11rpx;
-  background: #ffffff;
-  color: #4c5870;
-  font-size: 22rpx;
-  line-height: 1.35;
-}
-
-.project-list__filters input {
-  min-width: 0;
-  flex: 1;
-}
-
-.project-list__filters picker {
-  width: 170rpx;
-}
-
-.project-list__empty {
-  margin-top: 18rpx;
-  padding: 50rpx 30rpx;
-  border: 2rpx dashed #ccd4e0;
-  border-radius: 18rpx;
-  color: #788397;
-  font-size: 23rpx;
-  line-height: 1.6;
-  text-align: center;
-}
-
-.project-list__records {
-  margin-top: 18rpx;
-}
-
-.project-card {
-  display: flex;
-  margin-bottom: 16rpx;
-  padding: 24rpx;
-  border: 2rpx solid #e1e6ed;
-  border-radius: 16rpx;
-  background: #ffffff;
-  flex-direction: column;
-}
-
-.project-card__name {
-  min-width: 0;
-  flex: 1;
-  color: #263248;
-  font-size: 27rpx;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.project-card__name-line {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10rpx;
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-.project-card__status {
-  flex: none;
-  padding: 3rpx 8rpx;
-  border-radius: 6rpx;
-  background: #eceff4;
-  color: #747e8e;
-  font-size: 18rpx;
-}
-
-.project-card__price {
-  max-width: 260rpx;
-  flex: none;
-  color: #244f9e;
-  font-size: 27rpx;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.project-card__duration,
-.project-card__usage {
-  margin-top: 9rpx;
-  color: #68748a;
-  font-size: 22rpx;
-  overflow-wrap: anywhere;
-}
-
-.project-card__actions {
-  display: flex;
-  gap: 10rpx;
-  margin-top: 18rpx;
-  flex-wrap: wrap;
-}
-
-.project-card__actions button {
-  width: auto;
-  min-width: 118rpx;
-  min-height: 68rpx;
-  flex: 1;
-  padding: 12rpx 16rpx;
-  border: 2rpx solid #bac7de;
-  border-radius: 10rpx;
-  background: #f5f7fb;
-  color: #3f5f99;
-  font-size: 21rpx;
-  line-height: 1.3;
-}
-
-.project-card__actions .project-card__delete {
-  color: #9a4a47;
-}
-
-.project-card__usage {
-  color: #818a9a;
-  line-height: 1.5;
+@media (max-width: 360px) {
+  .project-list__toolbar { gap: 12rpx; }
+  .project-list__search { padding-right: 18rpx; padding-left: 18rpx; }
+  .project-list__add { width: 152rpx; padding-right: 14rpx; padding-left: 14rpx; }
 }
 </style>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { DeepReadonly } from "vue";
 import type { CustomerV1 } from "@/domain/data-schema";
-import AppIcon from "@/features/shared/components/AppIcon.vue";
 
 /** “顾客资料”Tab 的只读展示输入。 */
 interface CustomerProfileDetailsProps {
@@ -45,13 +44,29 @@ const emit = defineEmits<CustomerProfileDetailsEmits>();
       <text id="customer-actions-title" class="customer-profile-details__title">资料操作</text>
       <text class="customer-profile-details__hint">停用后不再参与新预约；有预约记录的顾客只能停用。</text>
       <view class="customer-profile-details__actions">
-        <button class="customer-profile-details__action" :disabled="disabled" @click="emit('toggle-status')">
+        <button
+          class="customer-profile-details__action"
+          :disabled="disabled"
+          hover-class="customer-profile-details__action--pressed"
+          @click="emit('toggle-status')"
+        >
+          <u-icon
+            :name="customer.status === 'active' ? 'pause-circle' : 'play-circle'"
+            color="#6236B5"
+            size="20"
+          />
           <text>{{ customer.status === "active" ? "停用顾客" : "重新启用" }}</text>
-          <AppIcon name="chevron-right" :size="20" color="#6A3CB3" />
+          <u-icon name="arrow-right" color="#817A80" size="16" />
         </button>
-        <button class="customer-profile-details__action customer-profile-details__action--danger" :disabled="disabled" @click="emit('delete')">
+        <button
+          class="customer-profile-details__action customer-profile-details__action--danger"
+          :disabled="disabled"
+          hover-class="customer-profile-details__action--pressed"
+          @click="emit('delete')"
+        >
+          <u-icon name="trash" color="#D92E56" size="20" />
           <text>彻底删除</text>
-          <AppIcon name="chevron-right" :size="20" color="#A34D59" />
+          <u-icon name="arrow-right" color="#817A80" size="16" />
         </button>
       </view>
     </section>
@@ -74,8 +89,10 @@ const emit = defineEmits<CustomerProfileDetailsEmits>();
 .customer-profile-details__empty { margin-top: 18rpx; padding: 28rpx 20rpx; border: 2rpx dashed #ded3dc; border-radius: 16rpx; color: #837a81; font-size: 22rpx; line-height: 1.55; text-align: center; }
 .customer-profile-details__hint { display: block; margin-top: 10rpx; color: #777078; font-size: 21rpx; line-height: 1.55; overflow-wrap: anywhere; }
 .customer-profile-details__actions { margin-top: 18rpx; }
-.customer-profile-details__action { width: 100%; min-height: 82rpx; box-sizing: border-box; gap: 18rpx; margin: 0; padding: 14rpx 0; border: 0; border-radius: 0; background: transparent; color: #6337ae; font-size: 24rpx; line-height: 1.35; text-align: left; }
+.customer-profile-details__action { width: 100%; min-height: 82rpx; box-sizing: border-box; justify-content: flex-start; gap: 14rpx; margin: 0; padding: 14rpx 0; border: 0; border-radius: 0; background: transparent; color: #6337ae; font-size: 24rpx; line-height: 1.35; text-align: left; }
+.customer-profile-details__action > text { min-width: 0; flex: 1; }
 .customer-profile-details__action + .customer-profile-details__action { border-top: 2rpx solid rgba(137, 123, 132, 0.14); }
 .customer-profile-details__action--danger { color: #a34d59; }
+.customer-profile-details__action--pressed { background: rgba(106, 67, 176, 0.05); }
 .customer-profile-details__action[disabled] { opacity: 0.5; }
 </style>

@@ -49,17 +49,28 @@ const emit = defineEmits<InventoryItemProfileDetailsEmits>();
 
     <view class="profile-details__operations">
       <text class="profile-details__operations-title">资料操作</text>
-      <button :disabled="disabled" @click="emit('toggleStatus')">
+      <button
+        :disabled="disabled"
+        hover-class="profile-details__operation--pressed"
+        @click="emit('toggleStatus')"
+      >
+        <u-icon
+          :name="item.status === 'active' ? 'pause-circle' : 'play-circle'"
+          color="#6236B5"
+          size="20"
+        />
         <text>{{ item.status === "active" ? "停用物品" : "重新启用" }}</text>
-        <u-icon name="arrow-right" color="#7B7379" size="17" />
+        <u-icon name="arrow-right" color="#817A80" size="16" />
       </button>
       <button
         class="profile-details__delete"
         :disabled="disabled"
+        hover-class="profile-details__operation--pressed"
         @click="emit('delete')"
       >
+        <u-icon name="trash" color="#D92E56" size="20" />
         <text>彻底删除</text>
-        <u-icon name="arrow-right" color="#A94442" size="17" />
+        <u-icon name="arrow-right" color="#817A80" size="16" />
       </button>
     </view>
   </view>
@@ -78,7 +89,9 @@ const emit = defineEmits<InventoryItemProfileDetailsEmits>();
 .profile-details__row--note { align-items: flex-start; padding: 22rpx 0; line-height: 1.5; }
 .profile-details__operations { margin-top: 20rpx; overflow: hidden; }
 .profile-details__operations-title { display: block; padding: 26rpx 28rpx 12rpx; }
-.profile-details__operations button { width: auto; min-height: 80rpx; justify-content: space-between; margin: 0 28rpx; padding: 12rpx 0; border: 0; border-bottom: 2rpx solid rgba(137, 123, 132, 0.12); border-radius: 0; background: transparent; color: #6a43b0; font-size: 23rpx; text-align: left; }
+.profile-details__operations button { width: auto; min-height: 80rpx; justify-content: flex-start; gap: 14rpx; margin: 0 28rpx; padding: 12rpx 0; border: 0; border-bottom: 2rpx solid rgba(137, 123, 132, 0.12); border-radius: 0; background: transparent; color: #6a43b0; font-size: 23rpx; text-align: left; }
+.profile-details__operations button > text { min-width: 0; flex: 1; }
 .profile-details__operations button:last-child { border-bottom: 0; }
 .profile-details__operations .profile-details__delete { color: #a94442; }
+.profile-details__operation--pressed { background: rgba(106, 67, 176, 0.05); }
 </style>
