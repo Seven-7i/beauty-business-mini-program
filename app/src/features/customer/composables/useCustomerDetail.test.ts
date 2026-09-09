@@ -43,7 +43,7 @@ function appointment(
     status: "pending",
     createdAt: scheduledAt,
     updatedAt: scheduledAt,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 
@@ -58,7 +58,7 @@ function createService(data: ApplicationData) {
 }
 
 const baseData: ApplicationData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   settings: { schemaVersion: 1 },
   unlockedModules: ["beauty"],
   backupMetadata: { schemaVersion: 1 },

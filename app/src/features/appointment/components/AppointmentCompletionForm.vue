@@ -6,89 +6,99 @@ import type {
   PendingAppointmentV1,
 } from "@/domain/data-schema";
 import type { CompleteAppointmentInput } from "@/services/appointment-management-service";
+import type { AppointmentUsageDraft } from "../appointment-form-state";
+import {
+  validateAppointmentCompletionInput,
+  type AppointmentCompletionValidationErrors,
+} from "../appointment-completion-validation";
+import AppointmentUsageEditor from "./AppointmentUsageEditor.vue";
 
-const props = defineProps<{
-  appointment: DeepReadonly<
-    PendingAppointmentV1 | CompletedAppointmentV1
-  >;
+interface AppointmentCompletionFormProps {
+  /** 待完成或正在修正完成信息的预约。 */
+  appointment: DeepReadonly<PendingAppointmentV1 | CompletedAppointmentV1>;
+  /** 可供选择并用于解析单位的库存物品。 */
   inventoryItems: readonly DeepReadonly<InventoryItemV1>[];
+  /** 正常待执行预约完成时带入的实际用量初始值。 */
+  defaultUsageInputs: readonly AppointmentUsageDraft[];
+  /** 提交期间锁定表单和遮罩关闭。 */
   submitting: boolean;
-}>();
+  /** 服务端或仓储返回的可恢复错误。 */
+  errorMessage?: string;
+}
+
+const props = defineProps<AppointmentCompletionFormProps>();
 
 const emit = defineEmits<{
+  /** 提交最终成交金额、时间和实际用量。 */
   (event: "submit", input: CompleteAppointmentInput): void;
+  /** 用户主动关闭完成面板。 */
   (event: "cancel"): void;
+  /** 输入变化后通知父组件清除旧错误。 */
+  (event: "change"): void;
 }>();
 
+/** 把本地日期格式化为日期选择器可识别的值。 */
 function formatLocalDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+/** 把本地时间格式化为时间选择器可识别的值。 */
 function formatLocalTime(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-const currentTime = new Date();
 const form = reactive({
   transactionAmountInput: "",
-  completedDate: formatLocalDate(currentTime),
-  completedTime: formatLocalTime(currentTime),
+  completedDate: "",
+  completedTime: "",
   note: "",
-  actualUsageInputs: [] as Array<{
-    inventoryItemId: string;
-    itemLabel: string;
-    quantityInput: string;
-  }>,
-  selectedInventoryItemId: "",
-  selectedQuantityInput: "",
+  actualUsageInputs: [] as AppointmentUsageDraft[],
 });
 
-const inventoryNames = computed(() =>
-  props.inventoryItems.map((item) => `${item.name}（${item.unit}）`),
+const validationErrors = reactive<AppointmentCompletionValidationErrors>({
+  transactionAmount: "",
+  completedAt: "",
+  usageByInventoryItemId: {},
+});
+
+type CompletionErrorTarget = "amount" | "time" | "usage" | "general";
+
+/** 将服务层可恢复错误落到最贴近用户可修正字段的位置。 */
+const externalErrorTarget = computed<CompletionErrorTarget>(() => {
+  const message = props.errorMessage ?? "";
+  if (!message) {
+    return "general";
+  }
+  if (message.includes("成交金额")) {
+    return "amount";
+  }
+  if (message.includes("实际完成时间")) {
+    return "time";
+  }
+  return /库存|用量|数量/.test(message) ? "usage" : "general";
+});
+const transactionAmountError = computed(
+  () =>
+    validationErrors.transactionAmount ||
+    (externalErrorTarget.value === "amount" ? props.errorMessage ?? "" : ""),
+);
+const completedAtError = computed(
+  () =>
+    validationErrors.completedAt ||
+    (externalErrorTarget.value === "time" ? props.errorMessage ?? "" : ""),
+);
+const usageError = computed(() =>
+  externalErrorTarget.value === "usage" ? props.errorMessage ?? "" : "",
+);
+const generalError = computed(() =>
+  externalErrorTarget.value === "general" ? props.errorMessage ?? "" : "",
 );
 
-function selectInventoryItem(event: { detail: { value: string } }): void {
-  form.selectedInventoryItemId =
-    props.inventoryItems[Number(event.detail.value)]?.id ?? "";
-}
-
-function selectedInventoryLabel(): string {
-  const item = props.inventoryItems.find(
-    (candidate) => candidate.id === form.selectedInventoryItemId,
-  );
-  return item ? `${item.name} · ${item.unit}` : "添加库存物品";
-}
-
-function addActualUsage(): void {
-  const item = props.inventoryItems.find(
-    (candidate) => candidate.id === form.selectedInventoryItemId,
-  );
-  if (!item || !form.selectedQuantityInput.trim()) {
-    return;
-  }
-  const existing = form.actualUsageInputs.find(
-    (usage) => usage.inventoryItemId === item.id,
-  );
-  if (existing) {
-    existing.quantityInput = form.selectedQuantityInput;
-  } else {
-    form.actualUsageInputs.push({
-      inventoryItemId: item.id,
-      itemLabel: `${item.name} · ${item.unit}`,
-      quantityInput: form.selectedQuantityInput,
-    });
-  }
-  form.selectedInventoryItemId = "";
-  form.selectedQuantityInput = "";
-}
-
-/** 每次选择另一预约时以其标准金额、备注和已保存实际用量初始化确认表单。 */
+/** 切换预约时，以预计用量或已保存实际用量初始化完成表单。 */
 function loadAppointment(
-  appointment: DeepReadonly<
-    PendingAppointmentV1 | CompletedAppointmentV1
-  >,
+  appointment: DeepReadonly<PendingAppointmentV1 | CompletedAppointmentV1>,
 ): void {
-  const loadedAt =
+  const completedAt =
     appointment.status === "completed"
       ? new Date(appointment.completedAt)
       : new Date();
@@ -97,97 +107,196 @@ function loadAppointment(
       ? appointment.transactionAmountCents
       : appointment.standardAmountCents) / 100
   ).toFixed(2);
-  form.completedDate = formatLocalDate(loadedAt);
-  form.completedTime = formatLocalTime(loadedAt);
+  form.completedDate = formatLocalDate(completedAt);
+  form.completedTime = formatLocalTime(completedAt);
   form.note = appointment.note ?? "";
-  form.selectedInventoryItemId = "";
-  form.selectedQuantityInput = "";
-  form.actualUsageInputs.splice(
-    0,
-    form.actualUsageInputs.length,
-    ...appointment.actualUsages.map((usage) => ({
-      inventoryItemId: usage.inventoryItemId,
-      itemLabel: `${usage.itemNameSnapshot} · ${usage.unitSnapshot}`,
-      quantityInput: usage.quantity,
-    })),
+  const usageInputs =
+    appointment.status === "pending"
+      ? props.defaultUsageInputs
+      : appointment.actualUsages.map((usage) => ({
+          inventoryItemId: usage.inventoryItemId,
+          quantityInput: usage.quantity,
+        }));
+  form.actualUsageInputs = usageInputs.map((usage) => ({ ...usage }));
+}
+
+/** 清除本地输入错误，保持用户下一次编辑只看到仍未修正的问题。 */
+function clearValidationErrors(): void {
+  validationErrors.transactionAmount = "";
+  validationErrors.completedAt = "";
+  validationErrors.usageByInventoryItemId = {};
+}
+
+/** 校验本地可确定的输入，服务层继续负责库存、状态和事务边界。 */
+function validateForm(): boolean {
+  const nextErrors = validateAppointmentCompletionInput({
+    transactionAmountInput: form.transactionAmountInput,
+    completedDate: form.completedDate,
+    completedTime: form.completedTime,
+    actualUsageInputs: form.actualUsageInputs,
+    inventoryItems: props.inventoryItems,
+  });
+  validationErrors.transactionAmount = nextErrors.transactionAmount;
+  validationErrors.completedAt = nextErrors.completedAt;
+  validationErrors.usageByInventoryItemId = nextErrors.usageByInventoryItemId;
+  return !(
+    nextErrors.transactionAmount ||
+    nextErrors.completedAt ||
+    Object.keys(nextErrors.usageByInventoryItemId).length
   );
 }
 
+/** 提交最终成交信息，由服务层原子扣减库存。 */
 function submit(): void {
+  if (!validateForm()) {
+    return;
+  }
   emit("submit", {
     appointmentId: props.appointment.id,
     transactionAmountInput: form.transactionAmountInput,
     completedAt: new Date(
       `${form.completedDate}T${form.completedTime}:00`,
     ).toISOString(),
-    actualUsageInputs: form.actualUsageInputs.map(
-      ({ inventoryItemId, quantityInput }) => ({
-        inventoryItemId,
-        quantityInput,
-      }),
-    ),
+    actualUsageInputs: form.actualUsageInputs.map((usage) => ({ ...usage })),
     note: form.note,
   });
 }
 
 watch(() => props.appointment, loadAppointment, { immediate: true });
+watch(
+  form,
+  () => {
+    clearValidationErrors();
+    emit("change");
+  },
+  { deep: true },
+);
 </script>
 
 <template>
-  <view class="completion-form">
-    <view class="completion-form__heading">
-      <view class="completion-form__copy">
-        <text class="completion-form__title">{{ appointment.status === "completed" ? "更正完成信息" : "确认完成预约" }}</text>
-        <text class="completion-form__hint">{{ appointment.status === "completed" ? "更正会同步补回或补扣库存，顾客和项目保持不变。" : "完成后会立即扣减库存并生成只读预约消耗。" }}</text>
+  <view class="completion-sheet" role="dialog" aria-modal="true">
+    <view class="completion-sheet__mask" @click="!submitting && emit('cancel')" />
+    <view class="completion-sheet__panel">
+      <view class="completion-sheet__handle" />
+      <button
+        class="completion-sheet__close"
+        :disabled="submitting"
+        aria-label="关闭完成预约弹层"
+        @click="emit('cancel')"
+      >
+        <u-icon name="close" color="#57535d" size="22" />
+      </button>
+      <text class="completion-sheet__title">
+        {{ appointment.status === "completed" ? "更正完成信息" : "完成预约" }}
+      </text>
+      <text class="completion-sheet__hint">
+        请确认本次实际用量，默认带出项目正常用量
+      </text>
+      <text v-if="generalError" class="completion-sheet__error">{{ generalError }}</text>
+
+      <view class="completion-sheet__section-heading">
+        <text>本次实际用量</text>
+        <text>{{ form.actualUsageInputs.length }} 项</text>
       </view>
-      <button :disabled="submitting" @click="emit('cancel')">返回</button>
-    </view>
-    <label class="completion-form__field">
-      <text>成交金额（元）</text>
-      <input v-model="form.transactionAmountInput" type="digit" placeholder="0.00" />
-    </label>
-    <view class="completion-form__datetime">
-      <picker mode="date" :value="form.completedDate" @change="form.completedDate = $event.detail.value"><view>{{ form.completedDate }}</view></picker>
-      <picker mode="time" :value="form.completedTime" @change="form.completedTime = $event.detail.value"><view>{{ form.completedTime }}</view></picker>
-    </view>
-    <view class="completion-form__usages">
-      <text class="completion-form__section-title">最终实际用量</text>
-      <view v-if="!form.actualUsageInputs.length" class="completion-form__empty">本次预约没有库存用量。</view>
-      <label v-for="(usage, index) in form.actualUsageInputs" :key="usage.inventoryItemId" class="completion-form__usage">
-        <text>{{ usage.itemLabel }}</text>
-        <input v-model="usage.quantityInput" type="digit" placeholder="用量" />
-        <button :disabled="submitting" @click="form.actualUsageInputs.splice(index, 1)">移除</button>
-      </label>
-      <view class="completion-form__usage completion-form__usage-add">
-        <picker :range="inventoryNames" @change="selectInventoryItem"><view>{{ selectedInventoryLabel() }}</view></picker>
-        <input v-model="form.selectedQuantityInput" type="digit" placeholder="用量" />
-        <button :disabled="submitting" @click="addActualUsage">添加</button>
+      <AppointmentUsageEditor
+        v-model="form.actualUsageInputs"
+        :inventory-items="inventoryItems"
+        :disabled="submitting"
+        :quantity-errors="validationErrors.usageByInventoryItemId"
+      />
+      <text v-if="usageError" class="completion-sheet__section-error">{{ usageError }}</text>
+
+      <view class="completion-sheet__field">
+        <text class="completion-sheet__label">成交金额 <text class="completion-sheet__required">*</text></text>
+        <view class="completion-sheet__field-main">
+          <view class="completion-sheet__control completion-sheet__money">
+            <text>¥</text>
+            <input v-model="form.transactionAmountInput" :disabled="submitting" type="digit" placeholder="0.00" />
+          </view>
+          <text v-if="transactionAmountError" class="completion-sheet__field-error">{{ transactionAmountError }}</text>
+        </view>
+      </view>
+      <view class="completion-sheet__field">
+        <text class="completion-sheet__label">实际完成时间 <text class="completion-sheet__required">*</text></text>
+        <view class="completion-sheet__field-main">
+          <view class="completion-sheet__datetime">
+            <picker
+              class="completion-sheet__datetime-picker"
+              mode="date"
+              :value="form.completedDate"
+              :disabled="submitting"
+              @change="form.completedDate = $event.detail.value"
+            >
+              <view class="completion-sheet__datetime-picker-content">
+                <view class="completion-sheet__datetime-copy">
+                  <text class="completion-sheet__datetime-label">日期</text>
+                  <text class="completion-sheet__datetime-value">{{ form.completedDate }}</text>
+                </view>
+                <u-icon name="calendar" color="#676271" size="18" />
+              </view>
+            </picker>
+            <picker
+              class="completion-sheet__datetime-picker"
+              mode="time"
+              :value="form.completedTime"
+              :disabled="submitting"
+              @change="form.completedTime = $event.detail.value"
+            >
+              <view class="completion-sheet__datetime-picker-content">
+                <view class="completion-sheet__datetime-copy">
+                  <text class="completion-sheet__datetime-label">时间</text>
+                  <text class="completion-sheet__datetime-value">{{ form.completedTime }}</text>
+                </view>
+                <u-icon name="clock" color="#676271" size="18" />
+              </view>
+            </picker>
+          </view>
+          <text v-if="completedAtError" class="completion-sheet__field-error">{{ completedAtError }}</text>
+        </view>
+      </view>
+      <view class="completion-sheet__field">
+        <text class="completion-sheet__label">完成备注（选填）</text>
+        <input v-model="form.note" class="completion-sheet__control" :disabled="submitting" maxlength="300" placeholder="补充本次服务说明" />
+      </view>
+      <view class="completion-sheet__actions">
+        <button :disabled="submitting" @click="emit('cancel')">暂不完成</button>
+        <button class="completion-sheet__confirm" :disabled="submitting" @click="submit">
+          {{ submitting ? "正在保存" : "确认完成" }}
+        </button>
       </view>
     </view>
-    <textarea v-model="form.note" maxlength="300" placeholder="完成备注（选填）" />
-    <button class="completion-form__submit" :disabled="submitting" @click="submit">{{ submitting ? "正在保存" : appointment.status === "completed" ? "保存完成信息更正" : "确认完成并扣减库存" }}</button>
   </view>
 </template>
 
 <style scoped>
-.completion-form { margin-top: 24rpx; padding: 28rpx; border: 2rpx solid #cddbcf; border-radius: 18rpx; background: #fbfefc; }
-.completion-form__heading, .completion-form__datetime, .completion-form__usage { display: flex; align-items: center; }
-.completion-form__heading { justify-content: space-between; gap: 18rpx; }
-.completion-form__copy { display: flex; min-width: 0; flex-direction: column; }
-.completion-form__title { color: #244533; font-size: 29rpx; font-weight: 700; }
-.completion-form__hint, .completion-form__empty { margin-top: 7rpx; color: #758477; font-size: 20rpx; line-height: 1.5; }
-.completion-form__heading button { height: 64rpx; padding: 0 20rpx; background: transparent; color: #536c5c; font-size: 20rpx; line-height: 64rpx; }
-.completion-form__field { display: flex; margin-top: 22rpx; flex-direction: column; color: #465b4e; font-size: 22rpx; font-weight: 600; }
-.completion-form input, .completion-form textarea, .completion-form__datetime picker { box-sizing: border-box; padding: 18rpx; border: 2rpx solid #d8e3da; border-radius: 11rpx; background: #fff; color: #2e4034; font-size: 23rpx; }
-.completion-form__field input { width: 100%; margin-top: 10rpx; }
-.completion-form__datetime { gap: 12rpx; margin-top: 14rpx; }
-.completion-form__datetime picker { flex: 1; text-align: center; }
-.completion-form__usages { margin-top: 22rpx; padding-top: 18rpx; border-top: 2rpx solid #e6eee7; }
-.completion-form__section-title { color: #3c5545; font-size: 23rpx; font-weight: 700; }
-.completion-form__usage { gap: 12rpx; margin-top: 12rpx; }
-.completion-form__usage text, .completion-form__usage picker { min-width: 0; flex: 1; color: #617166; font-size: 21rpx; }
-.completion-form__usage input { width: 150rpx; }
-.completion-form__usage button { width: 92rpx; height: 68rpx; background: #edf3ee; color: #536c5c; font-size: 20rpx; line-height: 68rpx; }
-.completion-form textarea { width: 100%; min-height: 120rpx; margin-top: 18rpx; }
-.completion-form__submit { height: 82rpx; margin-top: 20rpx; border-radius: 14rpx; background: #34704d; color: #fff; font-size: 25rpx; font-weight: 600; line-height: 82rpx; }
+.completion-sheet { position: fixed; z-index: 120; inset: 0; }
+.completion-sheet__mask { position: absolute; inset: 0; background: rgba(26, 23, 31, 0.58); }
+.completion-sheet__panel { position: absolute; bottom: 0; left: 0; width: 100%; max-height: 88vh; box-sizing: border-box; padding: 22rpx 38rpx calc(30rpx + env(safe-area-inset-bottom)); border-radius: 36rpx 36rpx 0 0; background: #fff; overflow-y: auto; }
+.completion-sheet__handle { width: 84rpx; height: 8rpx; margin: 0 auto 22rpx; border-radius: 999rpx; background: #d8d6dc; }
+.completion-sheet__close { position: absolute; top: 36rpx; right: 32rpx; display: flex; width: 66rpx; height: 66rpx; align-items: center; justify-content: center; padding: 0; border-radius: 50%; background: #f2f1f4; }
+.completion-sheet__title, .completion-sheet__hint { display: block; text-align: center; }
+.completion-sheet__title { color: #17151c; font-size: 34rpx; font-weight: 700; }
+.completion-sheet__hint { margin: 12rpx 70rpx 28rpx; color: #6f6a78; font-size: 23rpx; line-height: 1.55; }
+.completion-sheet__error { display: block; margin: 0 0 24rpx; padding: 18rpx 20rpx; border-radius: 12rpx; background: #fff0f1; color: #d92f42; font-size: 23rpx; line-height: 1.5; }
+.completion-sheet__section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; color: #25212c; font-size: 27rpx; font-weight: 650; }
+.completion-sheet__section-heading text:last-child { color: #696474; font-size: 22rpx; font-weight: 400; }
+.completion-sheet__section-error { display: block; margin: 10rpx 0 2rpx; color: #d92f42; font-size: 21rpx; line-height: 1.45; }
+.completion-sheet__field { display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; }
+.completion-sheet__label { width: 230rpx; color: #4d4858; font-size: 24rpx; }
+.completion-sheet__required { color: #ff263f; }
+.completion-sheet__field-main { min-width: 0; flex: 1; }
+.completion-sheet__field-error { display: block; margin-top: 7rpx; color: #d92f42; font-size: 20rpx; line-height: 1.35; }
+.completion-sheet__control { min-width: 0; min-height: 76rpx; box-sizing: border-box; flex: 1; border: 2rpx solid #dedbe5; border-radius: 12rpx; background: #fff; }
+.completion-sheet__control { padding: 0 20rpx; font-size: 24rpx; }
+.completion-sheet__money { display: flex; align-items: center; padding: 0 20rpx; }
+.completion-sheet__money input { min-width: 0; height: 72rpx; flex: 1; font-size: 24rpx; }
+.completion-sheet__datetime { display: flex; min-width: 0; flex: 1; gap: 12rpx; }
+.completion-sheet__datetime-picker { display: block; min-width: 0; flex: 1; }
+.completion-sheet__datetime-picker-content { display: flex; min-height: 84rpx; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 8rpx; padding: 0 14rpx; border: 2rpx solid #dedbe5; border-radius: 12rpx; background: #fff; }
+.completion-sheet__datetime-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3rpx; }
+.completion-sheet__datetime-label { color: #817b88; font-size: 18rpx; }
+.completion-sheet__datetime-value { color: #27232e; font-size: 22rpx; line-height: 1.2; white-space: nowrap; }
+.completion-sheet__actions { display: flex; gap: 24rpx; margin-top: 30rpx; }
+.completion-sheet__actions button { height: 88rpx; flex: 1; border: 2rpx solid #5335ec; border-radius: 14rpx; background: #fff; color: #4c31dd; font-size: 27rpx; font-weight: 600; line-height: 84rpx; }
+.completion-sheet__actions .completion-sheet__confirm { border: 0; background: linear-gradient(135deg, #5635df, #3d20d6); color: #fff; line-height: 88rpx; }
 </style>

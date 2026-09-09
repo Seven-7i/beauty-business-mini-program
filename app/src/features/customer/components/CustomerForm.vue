@@ -262,7 +262,10 @@ watch(
           <text class="address-editor__title">服务地址（选填）</text>
           <text class="address-editor__hint">可保存多个地点，创建预约时手动选择。</text>
         </view>
-        <button :disabled="submitting" @click="addAddress">＋ 添加地址</button>
+        <button :disabled="submitting" @click="addAddress">
+          <text class="address-editor__add-icon" aria-hidden="true">＋</text>
+          <text>添加地址</text>
+        </button>
       </view>
       <text v-if="addressEditorError" class="customer-form__field-error" role="alert">
         {{ addressEditorError }}
@@ -451,6 +454,12 @@ watch(
 .address-editor__heading button {
   flex: none;
   color: #7048ac;
+}
+
+.address-editor__add-icon {
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .address-card {

@@ -39,8 +39,8 @@ export interface SavePendingAppointmentInput {
   customerId: string;
   /** 至少一个且互不重复的启用服务项目。 */
   projectIds: readonly string[];
-  /** 省略时按所选项目重新生成默认用量。 */
-  actualUsageInputs?: readonly AppointmentUsageInput[];
+  /** 省略时按所选项目重新生成预计用量并占用库存。 */
+  expectedUsageInputs?: readonly AppointmentUsageInput[];
   /** 计划开始时间，保存为 ISO 8601。 */
   scheduledAt: string;
   /** 本次服务地址快照，不随顾客地址后续修改。 */
@@ -54,9 +54,40 @@ export interface SavePendingAppointmentInput {
 export interface CancelAppointmentInput {
   /** 必须仍处于待执行状态的预约标识。 */
   appointmentId: string;
-  /** 选填取消原因；空白原因不会写入数据。 */
-  cancelReason?: string;
+  /** 必填取消原因；用于保留顾客取消的业务事实。 */
+  cancelReason: string;
 }
+
+/** 后补预约只允许直接落为已完成或已取消，不产生待执行中间记录。 */
+export type SaveBackfilledAppointmentInput = {
+  /** 必须引用一位启用顾客。 */
+  customerId: string;
+  /** 至少一个且互不重复的启用服务项目。 */
+  projectIds: readonly string[];
+  /** 历史预约开始时间，不得晚于当前时间。 */
+  scheduledAt: string;
+  /** 本次服务地址快照。 */
+  serviceAddress: { addressText: string; note?: string };
+  /** 本次服务的可选多行备注。 */
+  note?: string;
+} & (
+  | {
+      /** 后补已完成记录。 */
+      outcome: "completed";
+      /** 以人民币元填写、最多两位小数的实际成交金额。 */
+      transactionAmountInput: string;
+      /** 历史实际完成时间，不得晚于当前时间或早于预约开始时间。 */
+      completedAt: string;
+      /** 完成时已发生的实际库存消耗。 */
+      actualUsageInputs: readonly AppointmentUsageInput[];
+    }
+  | {
+      /** 后补未完成记录，持久化状态为已取消。 */
+      outcome: "cancelled";
+      /** 必填顾客取消原因。 */
+      cancelReason: string;
+    }
+);
 
 export interface CompleteAppointmentInput {
   /** 必须仍处于待执行状态的预约标识。 */
@@ -72,8 +103,11 @@ export interface CompleteAppointmentInput {
 }
 
 export interface DeleteAppointmentExpectation {
+  /** 待删除预约标识。 */
   appointmentId: string;
+  /** 防止页面陈旧操作覆盖已变化状态。 */
   expectedStatus: AppointmentStatus;
+  /** 防止页面陈旧操作覆盖已更新记录。 */
   expectedUpdatedAt: string;
 }
 
@@ -104,6 +138,15 @@ function parseTransactionAmountCents(input: string): number {
     throw new Error("成交金额超出可保存范围");
   }
   return cents;
+}
+
+/** 把页面输入的时间转换为稳定 ISO 字符串并给出可读错误。 */
+function parseAppointmentDateTime(input: string, message: string): string {
+  const value = new Date(input);
+  if (Number.isNaN(value.getTime())) {
+    throw new Error(message);
+  }
+  return value.toISOString();
 }
 
 /** 提供待执行预约的读取、新增和编辑用例，库存占用由预约数据派生。 */
@@ -138,6 +181,7 @@ export function createAppointmentManagementService(
     }
     const fields = preparePendingAppointment({
       ...input,
+      actualUsageInputs: input.expectedUsageInputs,
       customers: data.customers,
       projects: data.projects,
       inventoryItems: data.inventoryItems,
@@ -170,7 +214,7 @@ export function createAppointmentManagementService(
       status: "pending",
       createdAt: current?.createdAt ?? occurredAt,
       updatedAt: occurredAt,
-      schemaVersion: 1,
+      schemaVersion: 2,
     };
     const customer = data.customers.find(
       (candidate) => candidate.id === appointment.customerId,
@@ -214,13 +258,17 @@ export function createAppointmentManagementService(
     if (!current || current.status !== "pending") {
       throw new Error("只有待执行预约可以取消");
     }
+    const cancelReason = input.cancelReason.trim();
+    if (!cancelReason) {
+      throw new Error("请填写取消原因");
+    }
     const occurredAt = now().toISOString();
     await repository.applyBusinessMutation({
       kind: "cancel-pending-appointment",
       appointmentId: current.id,
       expectedUpdatedAt: current.updatedAt,
       cancelledAt: occurredAt,
-      cancelReason: input.cancelReason,
+      cancelReason,
       updatedAt: occurredAt,
     });
     const persisted = (await readData()).appointments.find(
@@ -241,6 +289,9 @@ export function createAppointmentManagementService(
     );
     if (!current || current.status !== "cancelled") {
       throw new Error("只有已取消预约可以恢复取消");
+    }
+    if (current.recordOrigin === "backfilled") {
+      throw new Error("后补取消记录不能恢复为待执行");
     }
     const occurredAt = now().toISOString();
     await repository.applyBusinessMutation({
@@ -416,6 +467,9 @@ export function createAppointmentManagementService(
     if (!current || current.status !== "completed") {
       throw new Error("只有已完成预约可以撤销完成");
     }
+    if (current.recordOrigin === "backfilled") {
+      throw new Error("后补完成记录不能撤销为待执行");
+    }
     const occurredAt = now().toISOString();
     await repository.applyBusinessMutation({
       kind: "revert-completed-appointment",
@@ -466,9 +520,127 @@ export function createAppointmentManagementService(
     });
   }
 
+  /**
+   * 原子保存后补记录。仓储只会收到最终的已完成/已取消状态，
+   * 因此不会对历史预约产生待执行占用或时间冲突。
+   */
+  async function saveBackfilledAppointment(
+    input: SaveBackfilledAppointmentInput,
+  ): Promise<CompletedAppointmentV1 | CancelledAppointmentV1> {
+    const data = await readData();
+    const occurredAt = now().toISOString();
+    const scheduledAt = parseAppointmentDateTime(
+      input.scheduledAt,
+      "请选择有效的预约开始时间",
+    );
+    if (scheduledAt > occurredAt) {
+      throw new Error("后补预约的开始时间不能晚于当前时间");
+    }
+    const completedAt =
+      input.outcome === "completed"
+        ? parseAppointmentDateTime(
+            input.completedAt,
+            "请选择有效的实际完成时间",
+          )
+        : undefined;
+    if (completedAt && completedAt < scheduledAt) {
+      throw new Error("实际完成时间不能早于预约开始时间");
+    }
+    if (completedAt && completedAt > occurredAt) {
+      throw new Error("后补预约的实际完成时间不能晚于当前时间");
+    }
+    const fields = preparePendingAppointment({
+      customerId: input.customerId,
+      projectIds: input.projectIds,
+      actualUsageInputs:
+        input.outcome === "completed" ? input.actualUsageInputs : [],
+      scheduledAt,
+      serviceAddress: input.serviceAddress,
+      note: input.note,
+      customers: data.customers,
+      projects: data.projects,
+      inventoryItems: data.inventoryItems,
+      appointments: data.appointments,
+      skipAvailabilityCheck: input.outcome === "completed",
+    });
+    const appointmentId = createId();
+    if (data.appointments.some((appointment) => appointment.id === appointmentId)) {
+      throw new Error("预约标识冲突，请重试");
+    }
+    const appointment: CompletedAppointmentV1 | CancelledAppointmentV1 =
+      input.outcome === "completed"
+        ? {
+            id: appointmentId,
+            ...fields,
+            status: "completed",
+            recordOrigin: "backfilled",
+            transactionAmountCents: parseTransactionAmountCents(
+              input.transactionAmountInput,
+            ),
+            completedAt: completedAt!,
+            createdAt: occurredAt,
+            updatedAt: occurredAt,
+            schemaVersion: 2,
+          }
+        : (() => {
+            const cancelReason = input.cancelReason.trim();
+            if (!cancelReason) {
+              throw new Error("请填写取消原因");
+            }
+            return {
+              id: appointmentId,
+              ...fields,
+              status: "cancelled" as const,
+              recordOrigin: "backfilled" as const,
+              cancelReason,
+              cancelledAt: fields.scheduledAt,
+              createdAt: occurredAt,
+              updatedAt: occurredAt,
+              schemaVersion: 2 as const,
+            };
+          })();
+    const customer = data.customers.find(
+      (candidate) => candidate.id === appointment.customerId,
+    )!;
+    const projectIds = new Set(
+      appointment.projectSnapshots.map(({ projectId }) => projectId),
+    );
+    const inventoryItemIds = new Set(
+      appointment.actualUsages.map(({ inventoryItemId }) => inventoryItemId),
+    );
+    await repository.applyBusinessMutation({
+      kind: "create-backfilled-appointment",
+      appointment,
+      expectedReferences: {
+        customerUpdatedAt: customer.updatedAt,
+        projects: data.projects
+          .filter((project) => projectIds.has(project.id))
+          .map(({ id, updatedAt }) => ({ id, updatedAt })),
+        inventoryItems: data.inventoryItems
+          .filter((item) => inventoryItemIds.has(item.id))
+          .map(({ id, updatedAt }) => ({ id, updatedAt })),
+      },
+      movementIds:
+        appointment.status === "completed"
+          ? appointment.actualUsages.map((usage) => ({
+              inventoryItemId: usage.inventoryItemId,
+              movementId: createMovementId(),
+            }))
+          : [],
+    });
+    const persisted = (await readData()).appointments.find(
+      (candidate) => candidate.id === appointment.id,
+    );
+    if (!persisted || persisted.status !== appointment.status) {
+      throw new Error("后补预约保存后读回校验失败");
+    }
+    return persisted as CompletedAppointmentV1 | CancelledAppointmentV1;
+  }
+
   return {
     readData,
     savePendingAppointment,
+    saveBackfilledAppointment,
     cancelAppointment,
     restoreCancelledAppointment,
     completeAppointment,

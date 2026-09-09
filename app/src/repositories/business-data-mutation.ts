@@ -2,6 +2,8 @@ import type {
   ApplicationData,
   AppointmentUsageV1,
   BeautyProjectV1,
+  CancelledAppointmentV1,
+  CompletedAppointmentV1,
   CustomerV1,
   IsoDateTimeString,
   InventoryItemV1,
@@ -73,12 +75,28 @@ export type BusinessDataMutation =
       };
     }
   | {
+      /** 原子新增后补记录；最终状态只能是已完成或已取消。 */
+      kind: "create-backfilled-appointment";
+      appointment: CompletedAppointmentV1 | CancelledAppointmentV1;
+      /** 保护保存后补记录时读取的顾客、项目与库存资料。 */
+      expectedReferences: {
+        customerUpdatedAt: IsoDateTimeString;
+        projects: readonly { id: string; updatedAt: IsoDateTimeString }[];
+        inventoryItems: readonly { id: string; updatedAt: IsoDateTimeString }[];
+      };
+      /** 已完成记录的每项实际用量对应一个预生成的消耗标识。 */
+      movementIds: readonly {
+        inventoryItemId: string;
+        movementId: string;
+      }[];
+    }
+  | {
       /** 取消真实发生的待执行预约；只释放派生占用，不产生库存变动。 */
       kind: "cancel-pending-appointment";
       appointmentId: string;
       expectedUpdatedAt: IsoDateTimeString;
       cancelledAt: IsoDateTimeString;
-      cancelReason?: string;
+      cancelReason: string;
       updatedAt: IsoDateTimeString;
     }
   | {
@@ -851,6 +869,138 @@ export function applyBusinessDataMutation(
       };
       break;
     }
+    case "create-backfilled-appointment": {
+      if (mutation.appointment.recordOrigin !== "backfilled") {
+        throw new Error("后补预约必须保留后补标识");
+      }
+      if (
+        current.appointments.some(
+          (appointment) => appointment.id === mutation.appointment.id,
+        )
+      ) {
+        throw new Error("预约标识已存在");
+      }
+      if (
+        mutation.appointment.status === "cancelled" &&
+        !mutation.appointment.cancelReason?.trim()
+      ) {
+        throw new Error("请填写取消原因");
+      }
+      if (mutation.appointment.status === "completed") {
+        const expectedItemVersions = [...mutation.expectedReferences.inventoryItems]
+          .sort((left, right) => left.id.localeCompare(right.id));
+        const currentItemVersions = mutation.appointment.actualUsages
+          .map((usage) => {
+            const item = current.inventoryItems.find(
+              (candidate) => candidate.id === usage.inventoryItemId,
+            );
+            if (!item || item.status !== "active") {
+              throw new Error("后补预约实际用量引用的库存物品不存在或已停用");
+            }
+            if (
+              usage.itemNameSnapshot !== item.name ||
+              usage.unitSnapshot !== item.unit
+            ) {
+              throw new Error("后补预约库存物品快照与当前资料不一致");
+            }
+            parseDecimalQuantity(usage.quantity, {
+              unitKind: item.unitKind,
+              positive: true,
+            });
+            return { id: item.id, updatedAt: item.updatedAt };
+          })
+          .sort((left, right) => left.id.localeCompare(right.id));
+        if (
+          JSON.stringify(expectedItemVersions) !==
+          JSON.stringify(currentItemVersions)
+        ) {
+          throw new Error("后补预约库存资料已变化，请刷新后重试");
+        }
+      } else if (mutation.expectedReferences.inventoryItems.length > 0) {
+        throw new Error("已取消的后补预约不能包含库存资料引用");
+      }
+      const temporaryPending: PendingAppointmentV1 = {
+        id: mutation.appointment.id,
+        customerId: mutation.appointment.customerId,
+        projectSnapshots: mutation.appointment.projectSnapshots,
+        standardAmountCents: mutation.appointment.standardAmountCents,
+        estimatedDurationMinutes:
+          mutation.appointment.estimatedDurationMinutes,
+        actualUsages: [],
+        scheduledAt: mutation.appointment.scheduledAt,
+        serviceAddressSnapshot:
+          mutation.appointment.serviceAddressSnapshot,
+        ...(mutation.appointment.note
+          ? { note: mutation.appointment.note }
+          : {}),
+        status: "pending",
+        createdAt: mutation.appointment.createdAt,
+        updatedAt: mutation.appointment.updatedAt,
+        schemaVersion: 2,
+      };
+      const staged = applyBusinessDataMutation(
+        current,
+        {
+          kind: "upsert-pending-appointment",
+          appointment: temporaryPending,
+          expectedReferences: {
+            ...mutation.expectedReferences,
+            inventoryItems: [],
+          },
+        },
+        committedAt,
+      );
+      const stagedAppointment = staged.appointments.find(
+        (appointment) => appointment.id === temporaryPending.id,
+      );
+      if (!stagedAppointment || stagedAppointment.status !== "pending") {
+        throw new Error("后补预约暂存校验失败");
+      }
+      const finalized =
+        mutation.appointment.status === "completed"
+          ? applyBusinessDataMutation(
+              staged,
+              {
+                kind: "complete-pending-appointment",
+                appointmentId: stagedAppointment.id,
+                expectedUpdatedAt: stagedAppointment.updatedAt,
+                actualUsages: mutation.appointment.actualUsages,
+                transactionAmountCents:
+                  mutation.appointment.transactionAmountCents,
+                completedAt: mutation.appointment.completedAt,
+                note: mutation.appointment.note,
+                updatedAt: mutation.appointment.updatedAt,
+                movementIds: mutation.movementIds,
+              },
+              committedAt,
+            )
+          : applyBusinessDataMutation(
+              staged,
+              {
+                kind: "cancel-pending-appointment",
+                appointmentId: stagedAppointment.id,
+                expectedUpdatedAt: stagedAppointment.updatedAt,
+                cancelledAt: mutation.appointment.cancelledAt,
+                cancelReason: mutation.appointment.cancelReason!.trim(),
+                updatedAt: mutation.appointment.updatedAt,
+              },
+              committedAt,
+            );
+      candidate = {
+        ...finalized,
+        appointments: finalized.appointments.map((appointment) => {
+          if (appointment.id !== mutation.appointment.id) {
+            return appointment;
+          }
+          if (appointment.status === "completed") {
+            const { expectedUsages: _unused, ...backfilled } = appointment;
+            return { ...backfilled, recordOrigin: "backfilled" as const };
+          }
+          return { ...appointment, recordOrigin: "backfilled" as const };
+        }),
+      };
+      break;
+    }
     case "cancel-pending-appointment": {
       const persistedAppointment = current.appointments.find(
         (appointment) => appointment.id === mutation.appointmentId,
@@ -864,14 +1014,17 @@ export function applyBusinessDataMutation(
       if (persistedAppointment.updatedAt !== mutation.expectedUpdatedAt) {
         throw new Error("预约已被其他操作更新，请刷新后重试");
       }
-      const cancelReason = mutation.cancelReason?.trim();
+      const cancelReason = mutation.cancelReason.trim();
+      if (!cancelReason) {
+        throw new Error("请填写取消原因");
+      }
       candidate = {
         ...current,
         appointments: upsertById(current.appointments, {
           ...persistedAppointment,
           status: "cancelled",
           cancelledAt: mutation.cancelledAt,
-          ...(cancelReason ? { cancelReason } : {}),
+          cancelReason,
           updatedAt: advanceUpdatedAt(
             persistedAppointment.updatedAt,
             mutation.updatedAt,
@@ -890,6 +1043,9 @@ export function applyBusinessDataMutation(
       }
       if (persistedAppointment.status !== "cancelled") {
         throw new Error("只有已取消预约可以恢复取消");
+      }
+      if (persistedAppointment.recordOrigin === "backfilled") {
+        throw new Error("后补预约不能恢复为待执行");
       }
       if (persistedAppointment.updatedAt !== mutation.expectedUpdatedAt) {
         throw new Error("预约已被其他操作更新，请刷新后重试");
@@ -1048,6 +1204,9 @@ export function applyBusinessDataMutation(
         appointments: upsertById(current.appointments, {
           ...persistedAppointment,
           status: "completed",
+          expectedUsages: persistedAppointment.actualUsages.map((usage) => ({
+            ...usage,
+          })),
           actualUsages: committedActualUsages,
           transactionAmountCents: mutation.transactionAmountCents,
           completedAt: mutation.completedAt,
@@ -1259,9 +1418,14 @@ export function applyBusinessDataMutation(
       if (persistedAppointment.status !== "completed") {
         throw new Error("只有已完成预约可以撤销完成");
       }
+      if (persistedAppointment.recordOrigin === "backfilled") {
+        throw new Error("后补预约不能撤销为待执行");
+      }
       if (persistedAppointment.updatedAt !== mutation.expectedUpdatedAt) {
         throw new Error("预约已被其他操作更新，请刷新后重试");
       }
+      const restoredExpectedUsages =
+        persistedAppointment.expectedUsages ?? persistedAppointment.actualUsages;
       const nextItems = [...current.inventoryItems];
       let nextMovements = [...current.inventoryMovements];
       for (const usage of persistedAppointment.actualUsages) {
@@ -1298,9 +1462,10 @@ export function applyBusinessDataMutation(
           currentForItem[0]?.beforeQuantity ?? latestItem.currentQuantity,
           committedAt,
         );
-        const requiredHundredths =
-          pendingOccupiedHundredths(current, latestItem.id) +
-          decimalQuantityToHundredths(usage.quantity);
+        const requiredHundredths = pendingOccupiedHundredths(
+          current,
+          latestItem.id,
+        );
         const restoredCurrentHundredths = decimalQuantityToHundredths(
           replayed.item.currentQuantity,
         );
@@ -1317,13 +1482,34 @@ export function applyBusinessDataMutation(
           ...replayed.movements,
         ];
       }
+      for (const usage of restoredExpectedUsages) {
+        const item = nextItems.find(
+          (candidateItem) => candidateItem.id === usage.inventoryItemId,
+        );
+        if (!item) {
+          throw new Error(`${usage.itemNameSnapshot}库存物品不存在，无法恢复占用`);
+        }
+        const availableHundredths =
+          decimalQuantityToHundredths(item.currentQuantity) -
+          pendingOccupiedHundredths(current, item.id);
+        const shortageHundredths =
+          decimalQuantityToHundredths(usage.quantity) - availableHundredths;
+        if (shortageHundredths > 0) {
+          throw new Error(
+            `${usage.itemNameSnapshot}库存不足，撤销完成后缺少 ${hundredthsToDecimalQuantity(shortageHundredths)}${usage.unitSnapshot}`,
+          );
+        }
+      }
+      const { expectedUsages: _restoredExpectedUsages, ...revertedBase } =
+        persistedAppointment;
       candidate = {
         ...current,
         inventoryItems: nextItems,
         inventoryMovements: nextMovements,
         appointments: upsertById(current.appointments, {
-          ...persistedAppointment,
+          ...revertedBase,
           status: "pending",
+          actualUsages: restoredExpectedUsages,
           transactionAmountCents: undefined,
           completedAt: undefined,
           updatedAt: advanceUpdatedAt(

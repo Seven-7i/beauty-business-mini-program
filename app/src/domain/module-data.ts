@@ -9,7 +9,7 @@ import type {
 /** 美容模块独占的数据集合；不包含应用设置、授权状态或系统备份元数据。 */
 export interface BeautyModuleData {
   /** 美容模块数据自身的结构版本，独立于完整应用数据演进。 */
-  schemaVersion: 1;
+  schemaVersion: 2;
   inventoryItems: InventoryItemV1[];
   inventoryMovements: InventoryMovementV1[];
   projects: BeautyProjectV1[];

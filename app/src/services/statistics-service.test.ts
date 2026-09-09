@@ -34,7 +34,7 @@ function pending(id: string, scheduledAt: string): PendingAppointmentV1 {
     status: "pending",
     createdAt: localIso(-10, 10),
     updatedAt: localIso(-10, 10),
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 
@@ -64,7 +64,12 @@ describe("轻量经营统计与预约提醒", () => {
       pending("day-1", localIso(1, 9)),
       pending("day-3", localIso(3, 18)),
       pending("day-4", localIso(4, 9)),
-      { ...pending("cancelled", localIso(1, 10)), status: "cancelled", cancelledAt: localIso(0, 8) },
+      {
+        ...pending("cancelled", localIso(1, 10)),
+        status: "cancelled",
+        cancelledAt: localIso(0, 8),
+        cancelReason: "顾客取消",
+      },
     ];
 
     const overview = deriveBeautyHomeOverview(appointments, now);

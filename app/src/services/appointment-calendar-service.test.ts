@@ -16,7 +16,7 @@ function appointment(id: string, scheduledAt: Date): PendingAppointmentV1 {
     status: "pending",
     createdAt: iso,
     updatedAt: iso,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 
@@ -28,6 +28,7 @@ describe("预约月历", () => {
       ...appointment("cancelled", new Date(2026, 7, 9, 10, 0)),
       status: "cancelled",
       cancelledAt: new Date(2026, 7, 7, 10, 0).toISOString(),
+      cancelReason: "顾客取消",
     };
 
     const calendar = buildAppointmentMonthCalendar(2026, 7, [later, cancelled, earlier]);

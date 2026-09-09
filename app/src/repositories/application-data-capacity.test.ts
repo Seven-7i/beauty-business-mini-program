@@ -201,12 +201,12 @@ function createTargetScaleData(): ApplicationData {
       cancelledAt,
       createdAt: scheduledAt,
       updatedAt: cancelledAt,
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
     };
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: {

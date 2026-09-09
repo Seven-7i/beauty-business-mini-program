@@ -442,7 +442,7 @@ function createStorageEntries(data: ApplicationData): StorageEntry[] {
       ),
     );
   }
-  // 元数据最后写入；读取到 schemaVersion=1 时，各实体索引必须已经完整存在。
+  // 元数据最后写入；读取到当前 schemaVersion 时，各实体索引必须已经完整存在。
   entries.push(
     [SETTINGS_KEY, normalized.settings],
     [UNLOCKED_MODULES_KEY, normalized.unlockedModules],
@@ -591,7 +591,7 @@ export function createApplicationDataRepository(
       );
     }
 
-    if (schemaVersion !== 1) {
+    if (schemaVersion !== 1 && schemaVersion !== 2) {
       return migrateApplicationData({ schemaVersion }) as ApplicationData;
     }
 
@@ -659,7 +659,7 @@ export function createApplicationDataRepository(
     affectedCollections: readonly EntityCollectionName[],
     plan?: MutationStoragePlan,
   ): Promise<void> {
-    const hasCurrentSchema = (await storage.get<unknown>(SCHEMA_KEY)) === 1;
+    const hasCurrentSchema = (await storage.get<unknown>(SCHEMA_KEY)) === 2;
     if (hasCurrentSchema && plan) {
       for (const key of plan.keysToRemove) {
         await storage.remove(key);
@@ -947,6 +947,7 @@ export function createApplicationDataRepository(
         const candidate = normalizedData({
           ...previous,
           ...selectedModules.beauty,
+          schemaVersion: previous.schemaVersion,
         });
         const affectedCollections = ENTITY_LAYOUTS.map(
           ({ collection }) => collection,
@@ -1002,6 +1003,10 @@ export function createApplicationDataRepository(
             case "cancel-pending-appointment":
             case "restore-cancelled-appointment":
               return ["appointments"];
+            case "create-backfilled-appointment":
+              return mutation.appointment.status === "completed"
+                ? ["inventoryItems", "inventoryMovements", "appointments"]
+                : ["appointments"];
             case "delete-appointment":
               return mutation.expectedStatus === "completed"
                 ? ["inventoryMovements", "appointments"]
@@ -1017,7 +1022,7 @@ export function createApplicationDataRepository(
           }
         })();
         const mutationPlan =
-          (await storage.get<unknown>(SCHEMA_KEY)) === 1
+          (await storage.get<unknown>(SCHEMA_KEY)) === 2
             ? createMutationStoragePlan(
                 previous,
                 candidate,

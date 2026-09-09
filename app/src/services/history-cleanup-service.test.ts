@@ -8,7 +8,7 @@ const EXPORTED_AT = "2025-01-01T08:00:00.000Z";
 
 function createData(): ApplicationData {
   const base = {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     customerId: "customer-1",
     projectSnapshots: [
       {
@@ -25,7 +25,7 @@ function createData(): ApplicationData {
     createdAt: "2025-01-01T00:00:00.000Z",
   };
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: {
@@ -163,7 +163,7 @@ describe("手动历史清理", () => {
       appointments: data.appointments.map((appointment) =>
         appointment.id === old.id
           ? {
-              schemaVersion: 1,
+              schemaVersion: 2,
               id: old.id,
               customerId: old.customerId,
               projectSnapshots: old.projectSnapshots,

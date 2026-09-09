@@ -66,6 +66,8 @@ export interface PreparePendingAppointmentInput {
   appointments: readonly AppointmentV1[];
   /** 编辑待执行预约时排除自身占用和冲突。 */
   editingAppointmentId?: string;
+  /** 后补完成记录会按历史时间回放库存，不使用当前可用量做前置判断。 */
+  skipAvailabilityCheck?: boolean;
   /**
    * 编辑时的原预约快照。未改变的历史引用可以继续保留，即使对应对象后来已停用；
    * 新增引用仍必须来自启用对象。
@@ -167,6 +169,7 @@ function normalizeActualUsages(
   appointments: readonly AppointmentV1[],
   editingAppointmentId?: string,
   existingAppointment?: PendingAppointmentV1,
+  skipAvailabilityCheck = false,
 ): AppointmentUsageV1[] {
   if (new Set(inputs.map((usage) => usage.inventoryItemId)).size !== inputs.length) {
     throw new AppointmentRuleError(
@@ -191,22 +194,24 @@ function normalizeActualUsages(
       unitKind: item.unitKind,
       positive: true,
     });
-    const available = calculateAvailableQuantity(
-      item,
-      appointments,
-      editingAppointmentId,
-    );
-    if (
-      decimalQuantityToHundredths(quantity) >
-      decimalQuantityToHundredths(available)
-    ) {
-      const shortage =
-        decimalQuantityToHundredths(quantity) -
-        decimalQuantityToHundredths(available);
-      throw new AppointmentRuleError(
-        "insufficient-stock",
-        `${item.name}库存不足，缺少 ${hundredthsToDecimalQuantity(shortage)}${item.unit}`,
+    if (!skipAvailabilityCheck) {
+      const available = calculateAvailableQuantity(
+        item,
+        appointments,
+        editingAppointmentId,
       );
+      if (
+        decimalQuantityToHundredths(quantity) >
+        decimalQuantityToHundredths(available)
+      ) {
+        const shortage =
+          decimalQuantityToHundredths(quantity) -
+          decimalQuantityToHundredths(available);
+        throw new AppointmentRuleError(
+          "insufficient-stock",
+          `${item.name}库存不足，缺少 ${hundredthsToDecimalQuantity(shortage)}${item.unit}`,
+        );
+      }
     }
     return {
       inventoryItemId: item.id,
@@ -305,6 +310,7 @@ export function preparePendingAppointment(
     input.appointments,
     input.editingAppointmentId,
     input.existingAppointment,
+    input.skipAvailabilityCheck,
   );
   const note = input.note?.trim();
   return {

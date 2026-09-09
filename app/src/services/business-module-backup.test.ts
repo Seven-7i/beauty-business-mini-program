@@ -9,7 +9,7 @@ const CREATED_AT = "2026-08-09T08:00:00.000Z";
 
 function createData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: {

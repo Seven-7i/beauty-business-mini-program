@@ -198,7 +198,7 @@ describe("库存业务规则", () => {
       serviceAddressSnapshot: { addressText: "测试地址" },
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
     };
     const appointments: AppointmentV1[] = [
       {
@@ -219,6 +219,7 @@ describe("库存业务规则", () => {
         id: "appointment-2",
         status: "cancelled",
         cancelledAt: NOW,
+        cancelReason: "顾客取消",
         actualUsages: [
           {
             inventoryItemId: "item-1",

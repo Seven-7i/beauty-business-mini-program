@@ -131,8 +131,24 @@
 		{
 			"path": "pages/appointment/index",
 			"style": {
-				"navigationBarTitleText": "预约",
-				"navigationBarBackgroundColor": "#F8F9FB",
+				"navigationBarTitleText": "预约执行",
+				"navigationBarBackgroundColor": "#FBF8FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/appointment-create/index",
+			"style": {
+				"navigationBarTitleText": "新增预约",
+				"navigationBarBackgroundColor": "#FBF8FB",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/appointment-detail/index",
+			"style": {
+				"navigationBarTitleText": "预约详情",
+				"navigationBarBackgroundColor": "#FBF8FB",
 				"navigationBarTextStyle": "black"
 			}
 		},

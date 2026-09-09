@@ -5,7 +5,7 @@ import { createMyCenterService } from "./my-center-service";
 describe("我的页面摘要服务", () => {
   it("只返回模块、导出和容量摘要", async () => {
     const data: ApplicationData = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       settings: { schemaVersion: 1 },
       unlockedModules: ["beauty"],
       backupMetadata: {

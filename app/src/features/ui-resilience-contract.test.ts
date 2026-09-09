@@ -9,7 +9,7 @@ function readSource(path: string): string {
 }
 
 const emptyData: ApplicationData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   settings: { schemaVersion: 1 },
   unlockedModules: ["beauty"],
   backupMetadata: { schemaVersion: 1 },
@@ -333,6 +333,11 @@ describe("阶段 4 界面韧性契约", () => {
     expect(form).toContain("form.addresses.unshift");
     expect(form).toContain("shouldConfirmCustomerAddressRemoval");
     expect(form).toContain('title: "移除服务地址"');
+    expect(form).toContain('content: "该地址已填写内容，确定移除吗？"');
+    expect(form).toContain('class="address-editor__add-icon"');
+    expect(form).toMatch(
+      /\.address-editor__add-icon\s*\{[^}]*font-size:\s*30rpx;[^}]*font-weight:\s*700;/s,
+    );
     expect(form).toMatch(
       /\.customer-form--page \.address-editor__empty\s*\{[^}]*padding:\s*22rpx 0;[^}]*text-align:\s*center;/s,
     );

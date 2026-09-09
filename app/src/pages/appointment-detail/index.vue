@@ -2,7 +2,7 @@
 import { onLoad, onShow } from "@dcloudio/uni-app";
 import { ref, shallowRef } from "vue";
 import { APP_VERSION } from "@/config/app";
-import AppointmentManagement from "@/features/appointment/components/AppointmentManagement.vue";
+import AppointmentDetailPage from "@/features/appointment/components/AppointmentDetailPage.vue";
 import {
   createUniStorageAdapter,
   type UniStorageRuntime,
@@ -11,7 +11,6 @@ import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/ba
 import { createApplicationDataRepository } from "@/repositories/application-data-repository";
 import { createAppointmentManagementService } from "@/services/appointment-management-service";
 
-// 页面作为组合根注入微信能力，预约组件只依赖管理用例。
 const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
 const repository = createApplicationDataRepository({
   storage,
@@ -19,28 +18,22 @@ const repository = createApplicationDataRepository({
   appVersion: APP_VERSION,
 });
 const service = createAppointmentManagementService({ repository });
-const initialAppointmentId = shallowRef("");
-const management = ref<InstanceType<typeof AppointmentManagement> | null>(null);
+const appointmentId = shallowRef("");
+const page = ref<InstanceType<typeof AppointmentDetailPage> | null>(null);
 
-/** 来源库存动态可以请求直接打开对应预约的完成信息。 */
+/** 详情页必须带预约标识；缺失时由页面展示不可用状态。 */
 onLoad((query) => {
-  initialAppointmentId.value = query?.appointmentId?.trim() ?? "";
+  appointmentId.value = query?.appointmentId?.trim() ?? "";
 });
 onShow(() => {
-  void management.value?.refresh();
+  void page.value?.refresh();
 });
 </script>
 
 <template>
-  <view class="appointment-page">
-    <AppointmentManagement
-      ref="management"
-      :service="service"
-      :initial-appointment-id="initialAppointmentId"
-    />
-  </view>
+  <AppointmentDetailPage
+    ref="page"
+    :service="service"
+    :appointment-id="appointmentId"
+  />
 </template>
-
-<style scoped>
-.appointment-page { min-height: 100vh; background: #fbf8fb; }
-</style>

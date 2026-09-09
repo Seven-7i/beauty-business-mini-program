@@ -1,7 +1,7 @@
 import type { BusinessModuleId } from "./business-module";
 
 /** 当前应用数据 schema 版本。升级持久化结构时必须同步增加 migration。 */
-export const CURRENT_DATA_SCHEMA_VERSION = 1 as const;
+export const CURRENT_DATA_SCHEMA_VERSION = 2 as const;
 
 /** ISO 8601 日期时间字符串；运行时由 migration 模块校验。 */
 export type IsoDateTimeString = string;
@@ -27,6 +27,9 @@ export type InventoryMovementType =
 
 /** 预约当前所处的业务状态。 */
 export type AppointmentStatus = "pending" | "completed" | "cancelled";
+
+/** 预约记录来源；缺省表示按正常流程提前创建的预约。 */
+export type AppointmentRecordOrigin = "backfilled";
 
 /** 应用级设置。 */
 export interface ApplicationSettingsV1 {
@@ -197,7 +200,7 @@ export interface ServiceAddressSnapshotV1 {
 }
 
 /** 所有预约状态共有的数据。 */
-interface AppointmentBaseV1 {
+interface AppointmentBaseV2 {
   /** 稳定且唯一的预约标识。 */
   id: string;
   /** 当前关联的顾客标识。 */
@@ -208,8 +211,13 @@ interface AppointmentBaseV1 {
   standardAmountCents: number;
   /** 项目快照时长之和，单位为分钟。 */
   estimatedDurationMinutes: number;
-  /** 本次预约最终保存的实际用量。 */
+  /**
+   * 预约关联的库存用量：待执行/已取消时表示项目默认的预计占用，
+   * 已完成时表示完成时确认的实际用量。
+   */
   actualUsages: AppointmentUsageV1[];
+  /** 后补记录显式保存来源；正常预约省略。 */
+  recordOrigin?: AppointmentRecordOrigin;
   /** 计划开始服务的时间。 */
   scheduledAt: IsoDateTimeString;
   /** 本次预约的服务地址快照。 */
@@ -221,11 +229,11 @@ interface AppointmentBaseV1 {
   /** 最后更新时间。 */
   updatedAt: IsoDateTimeString;
   /** 记录自身的 schema 版本。 */
-  schemaVersion: 1;
+  schemaVersion: 2;
 }
 
 /** 待执行预约。 */
-export interface PendingAppointmentV1 extends AppointmentBaseV1 {
+export interface PendingAppointmentV2 extends AppointmentBaseV2 {
   status: "pending";
   transactionAmountCents?: never;
   completedAt?: never;
@@ -234,8 +242,10 @@ export interface PendingAppointmentV1 extends AppointmentBaseV1 {
 }
 
 /** 已完成预约。 */
-export interface CompletedAppointmentV1 extends AppointmentBaseV1 {
+export interface CompletedAppointmentV2 extends AppointmentBaseV2 {
   status: "completed";
+  /** 正常预约完成前的预计占用；撤销完成时据此恢复待执行占用。后补记录省略。 */
+  expectedUsages?: AppointmentUsageV1[];
   /** 实际成交金额，单位为分。 */
   transactionAmountCents: number;
   /** 实际完成时间。 */
@@ -245,29 +255,38 @@ export interface CompletedAppointmentV1 extends AppointmentBaseV1 {
 }
 
 /** 已取消预约。 */
-export interface CancelledAppointmentV1 extends AppointmentBaseV1 {
+export interface CancelledAppointmentV2 extends AppointmentBaseV2 {
   status: "cancelled";
   transactionAmountCents?: never;
   completedAt?: never;
-  /** 可选取消原因。 */
-  cancelReason?: string;
+  /** 必填取消原因；v1 历史空值由 migration 写入明确占位原因。 */
+  cancelReason: string;
   /** 取消时间。 */
   cancelledAt: IsoDateTimeString;
 }
 
 /** 任一有效状态的预约。 */
-export type AppointmentV1 =
-  | PendingAppointmentV1
-  | CompletedAppointmentV1
-  | CancelledAppointmentV1;
+export type AppointmentV2 =
+  | PendingAppointmentV2
+  | CompletedAppointmentV2
+  | CancelledAppointmentV2;
+
+/** @deprecated 兼容现有模块命名；当前预约持久化契约已升级为 v2。 */
+export type PendingAppointmentV1 = PendingAppointmentV2;
+/** @deprecated 兼容现有模块命名；当前预约持久化契约已升级为 v2。 */
+export type CompletedAppointmentV1 = CompletedAppointmentV2;
+/** @deprecated 兼容现有模块命名；当前预约持久化契约已升级为 v2。 */
+export type CancelledAppointmentV1 = CancelledAppointmentV2;
+/** @deprecated 兼容现有模块命名；当前预约持久化契约已升级为 v2。 */
+export type AppointmentV1 = AppointmentV2;
 
 /**
  * 当前版本完整业务数据快照。
  * 它是备份、恢复预检和 migrations 之间共享的逻辑数据契约，不要求以单个 Storage key 保存。
  */
-export interface ApplicationDataV1 {
+export interface ApplicationDataV2 {
   /** 完整快照的 schema 版本。 */
-  schemaVersion: 1;
+  schemaVersion: 2;
   /** 应用级设置。 */
   settings: ApplicationSettingsV1;
   /** 已解锁业务模块。 */
@@ -283,8 +302,8 @@ export interface ApplicationDataV1 {
   /** 全部顾客。 */
   customers: CustomerV1[];
   /** 全部预约。 */
-  appointments: AppointmentV1[];
+  appointments: AppointmentV2[];
 }
 
 /** 当前应用版本能够读取和写出的完整数据快照。 */
-export type ApplicationData = ApplicationDataV1;
+export type ApplicationData = ApplicationDataV2;

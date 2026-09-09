@@ -26,7 +26,7 @@ function createPendingAppointment(
     status: "pending",
     createdAt: scheduledAt,
     updatedAt: scheduledAt,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 

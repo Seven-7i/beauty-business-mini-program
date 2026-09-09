@@ -22,7 +22,7 @@ export interface BusinessModuleBackupHandler<
 
 function pickBeautyData(data: ApplicationData): BeautyModuleData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     inventoryItems: data.inventoryItems,
     inventoryMovements: data.inventoryMovements,
     projects: data.projects,
@@ -41,18 +41,18 @@ function validateBeautyModuleData(data: unknown): BeautyModuleData {
   }
   const record = data as Record<string, unknown>;
   const version = record.schemaVersion;
-  if (typeof version === "number" && version > 1) {
+  if (typeof version === "number" && version > 2) {
     throw new DataMigrationError(
       "future-version",
       "$.schemaVersion",
-      `美容模块数据版本 ${version} 高于当前支持版本 1`,
+      `美容模块数据版本 ${version} 高于当前支持版本 2`,
     );
   }
-  if (version !== 1) {
+  if (version !== 1 && version !== 2) {
     throw new DataMigrationError(
       "unsupported-version",
       "$.schemaVersion",
-      "当前版本只支持美容模块数据版本 1",
+      "当前版本只支持美容模块数据版本 1 或 2",
     );
   }
   const allowedFields = new Set([
@@ -74,7 +74,7 @@ function validateBeautyModuleData(data: unknown): BeautyModuleData {
     );
   }
   const normalized = migrateApplicationData({
-    schemaVersion: 1,
+    schemaVersion: version,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -100,6 +100,7 @@ export const beautyModuleBackupHandler: BusinessModuleBackupHandler<"beauty"> = 
     return {
       ...current,
       ...normalized,
+      schemaVersion: current.schemaVersion,
     };
   },
 };

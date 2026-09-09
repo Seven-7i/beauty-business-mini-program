@@ -131,6 +131,14 @@ function parseLiteralOne(value: unknown, path: string): 1 {
   return 1;
 }
 
+function parseLiteralTwo(value: unknown, path: string): 2 {
+  if (value !== 2) {
+    return invalid(path, "必须为 2");
+  }
+
+  return 2;
+}
+
 function parseEnum<T extends string>(
   value: unknown,
   allowed: readonly T[],
@@ -664,7 +672,11 @@ function parseServiceAddressSnapshot(
   };
 }
 
-function parseAppointment(value: unknown, path: string): AppointmentV1 {
+function parseAppointment(
+  value: unknown,
+  path: string,
+  sourceVersion: 1 | 2,
+): AppointmentV1 {
   const record = parseRecord(value, path);
   ensureOnlyFields(
     record,
@@ -675,6 +687,7 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
       "standardAmountCents",
       "estimatedDurationMinutes",
       "actualUsages",
+      ...(sourceVersion === 2 ? ["expectedUsages", "recordOrigin"] : []),
       "scheduledAt",
       "serviceAddressSnapshot",
       "note",
@@ -715,6 +728,21 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
     `${path}.actualUsages`,
     "库存物品",
   );
+  const expectedUsages =
+    sourceVersion === 1 ||
+    record.expectedUsages === undefined
+      ? undefined
+      : parseArray(record.expectedUsages, `${path}.expectedUsages`).map(
+          (usage, index) =>
+            parseAppointmentUsage(usage, `${path}.expectedUsages[${index}]`),
+        );
+  if (expectedUsages) {
+    ensureUnique(
+      expectedUsages.map((usage) => usage.inventoryItemId),
+      `${path}.expectedUsages`,
+      "库存物品",
+    );
+  }
 
   const standardAmountCents = parseInteger(
     record.standardAmountCents,
@@ -747,6 +775,15 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
   }
 
   const note = parseOptionalString(record.note, `${path}.note`);
+  const recordOrigin =
+    sourceVersion === 1 ||
+    record.recordOrigin === undefined
+      ? undefined
+      : parseEnum<"backfilled">(
+          record.recordOrigin,
+          ["backfilled"],
+          `${path}.recordOrigin`,
+        );
   const base = {
     id: parseNonEmptyString(record.id, `${path}.id`),
     customerId: parseNonEmptyString(record.customerId, `${path}.customerId`),
@@ -754,6 +791,7 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
     standardAmountCents,
     estimatedDurationMinutes,
     actualUsages,
+    ...(recordOrigin === undefined ? {} : { recordOrigin }),
     scheduledAt: parseIsoDateTime(record.scheduledAt, `${path}.scheduledAt`),
     serviceAddressSnapshot: parseServiceAddressSnapshot(
       record.serviceAddressSnapshot,
@@ -762,25 +800,36 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
     ...(note === undefined ? {} : { note }),
     createdAt: parseIsoDateTime(record.createdAt, `${path}.createdAt`),
     updatedAt: parseIsoDateTime(record.updatedAt, `${path}.updatedAt`),
-    schemaVersion: parseLiteralOne(
-      record.schemaVersion,
-      `${path}.schemaVersion`,
-    ),
+    schemaVersion:
+      sourceVersion === 1
+        ? (parseLiteralOne(record.schemaVersion, `${path}.schemaVersion`), 2 as const)
+        : parseLiteralTwo(record.schemaVersion, `${path}.schemaVersion`),
   };
 
   switch (record.status) {
     case "pending":
       ensureAbsent(
         record,
-        ["transactionAmountCents", "completedAt", "cancelReason", "cancelledAt"],
+        [
+          "recordOrigin",
+          "expectedUsages",
+          "transactionAmountCents",
+          "completedAt",
+          "cancelReason",
+          "cancelledAt",
+        ],
         path,
       );
       return { ...base, status: "pending" };
     case "completed":
       ensureAbsent(record, ["cancelReason", "cancelledAt"], path);
+      if (recordOrigin === "backfilled" && expectedUsages !== undefined) {
+        invalid(`${path}.expectedUsages`, "后补完成记录没有待执行预计占用");
+      }
       return {
         ...base,
         status: "completed",
+        ...(expectedUsages === undefined ? {} : { expectedUsages }),
         transactionAmountCents: parseInteger(
           record.transactionAmountCents,
           `${path}.transactionAmountCents`,
@@ -792,15 +841,23 @@ function parseAppointment(value: unknown, path: string): AppointmentV1 {
         ),
       };
     case "cancelled": {
-      ensureAbsent(record, ["transactionAmountCents", "completedAt"], path);
-      const cancelReason = parseOptionalString(
+      ensureAbsent(
+        record,
+        ["expectedUsages", "transactionAmountCents", "completedAt"],
+        path,
+      );
+      const parsedCancelReason = parseOptionalString(
         record.cancelReason,
         `${path}.cancelReason`,
       );
+      const cancelReason = parsedCancelReason?.trim();
+      if (sourceVersion === 2 && !cancelReason) {
+        invalid(`${path}.cancelReason`, "已取消预约必须填写取消原因");
+      }
       return {
         ...base,
         status: "cancelled",
-        ...(cancelReason === undefined ? {} : { cancelReason }),
+        cancelReason: cancelReason || "历史记录未填写取消原因",
         cancelledAt: parseIsoDateTime(
           record.cancelledAt,
           `${path}.cancelledAt`,
@@ -903,6 +960,23 @@ function validateCrossReferences(data: ApplicationData): void {
         invalid(`$.appointments[${index}].actualUsages[${usageIndex}].quantity`, "引用离散单位物品时必须为整数");
       }
     }
+    if (appointment.status === "completed" && appointment.expectedUsages) {
+      for (const [usageIndex, usage] of appointment.expectedUsages.entries()) {
+        const item = inventoryItems.get(usage.inventoryItemId);
+        if (item === undefined) {
+          invalid(
+            `$.appointments[${index}].expectedUsages[${usageIndex}].inventoryItemId`,
+            "引用的库存物品不存在",
+          );
+        }
+        if (item.unitKind === "discrete" && usage.quantity.includes(".")) {
+          invalid(
+            `$.appointments[${index}].expectedUsages[${usageIndex}].quantity`,
+            "引用离散单位物品时必须为整数",
+          );
+        }
+      }
+    }
   }
 
   if (
@@ -913,7 +987,10 @@ function validateCrossReferences(data: ApplicationData): void {
   }
 }
 
-function parseVersionOne(source: unknown): ApplicationData {
+function parseVersionedData(
+  source: unknown,
+  sourceVersion: 1 | 2,
+): ApplicationData {
   const record = parseRecord(source, "$");
   ensureOnlyFields(
     record,
@@ -931,7 +1008,10 @@ function parseVersionOne(source: unknown): ApplicationData {
     "$",
   );
   const data: ApplicationData = {
-    schemaVersion: parseLiteralOne(record.schemaVersion, "$.schemaVersion"),
+    schemaVersion:
+      sourceVersion === 1
+        ? (parseLiteralOne(record.schemaVersion, "$.schemaVersion"), 2 as const)
+        : parseLiteralTwo(record.schemaVersion, "$.schemaVersion"),
     settings: parseSettings(record.settings, "$.settings"),
     unlockedModules: parseModules(record.unlockedModules, "$.unlockedModules"),
     backupMetadata: parseBackupMetadata(record.backupMetadata, "$.backupMetadata"),
@@ -952,7 +1032,11 @@ function parseVersionOne(source: unknown): ApplicationData {
     ),
     appointments: parseArray(record.appointments, "$.appointments").map(
       (appointment, index) =>
-        parseAppointment(appointment, `$.appointments[${index}]`),
+        parseAppointment(
+          appointment,
+          `$.appointments[${index}]`,
+          sourceVersion,
+        ),
     ),
   };
 
@@ -961,7 +1045,7 @@ function parseVersionOne(source: unknown): ApplicationData {
 }
 
 /**
- * 将阶段 0 产生的未版本化设置迁移为空业务数据的 v1 快照。
+ * 将阶段 0 产生的未版本化设置迁移为空业务数据的当前快照。
  * 阶段 0 尚未写入顾客、项目、预约或库存，因此这里不会臆测或丢弃业务记录。
  */
 function migrateVersionZero(source: UnknownRecord): ApplicationData {
@@ -989,7 +1073,7 @@ function migrateVersionZero(source: UnknownRecord): ApplicationData {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: {
       schemaVersion: 1,
       ...(defaultModuleCandidate === undefined
@@ -1032,13 +1116,8 @@ export function migrateApplicationData(source: unknown): ApplicationData {
       `数据版本 ${rawVersion as number} 高于当前支持版本 ${CURRENT_DATA_SCHEMA_VERSION}，请先升级应用`,
     );
   }
-  if (rawVersion !== CURRENT_DATA_SCHEMA_VERSION) {
-    throw new DataMigrationError(
-      "unsupported-version",
-      "$.schemaVersion",
-      `暂不支持从数据版本 ${rawVersion as number} 迁移`,
-    );
+  if (rawVersion === 1) {
+    return parseVersionedData(record, 1);
   }
-
-  return parseVersionOne(record);
+  return parseVersionedData(record, 2);
 }

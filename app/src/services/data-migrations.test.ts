@@ -10,7 +10,7 @@ const UPDATED_AT = "2026-08-06T03:00:00.000Z";
 
 function createValidData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: {
@@ -112,7 +112,7 @@ function createValidData(): ApplicationData {
         completedAt: "2026-08-06T05:00:00.000Z",
         createdAt: CREATED_AT,
         updatedAt: UPDATED_AT,
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
     ],
   };
@@ -132,14 +132,14 @@ function expectMigrationError(
 }
 
 describe("应用数据 migrations", () => {
-  it("把阶段 0 未版本化模块设置迁移为 v1 空业务快照", () => {
+  it("把阶段 0 未版本化模块设置迁移为当前空业务快照", () => {
     const source = {
       unlockedModules: ["beauty"],
       defaultModuleId: "beauty",
     };
 
     expect(migrateApplicationData(source)).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       settings: { schemaVersion: 1, defaultModuleId: "beauty" },
       unlockedModules: ["beauty"],
       backupMetadata: { schemaVersion: 1 },
@@ -151,7 +151,7 @@ describe("应用数据 migrations", () => {
     });
   });
 
-  it("校验 v1 完整快照并返回不共享嵌套引用的新对象", () => {
+  it("校验 v2 完整快照并返回不共享嵌套引用的新对象", () => {
     const source = createValidData();
 
     const result = migrateApplicationData(source);
@@ -160,6 +160,45 @@ describe("应用数据 migrations", () => {
     expect(result).not.toBe(source);
     expect(result.inventoryItems).not.toBe(source.inventoryItems);
     expect(result.appointments[0]).not.toBe(source.appointments[0]);
+  });
+
+  it("把 v1 预约快照升级为 v2 并为预约写入新实体版本", () => {
+    const source = structuredClone(createValidData()) as unknown as {
+      schemaVersion: number;
+      appointments: Array<{ schemaVersion: number }>;
+    };
+    source.schemaVersion = 1;
+    source.appointments[0]!.schemaVersion = 1;
+
+    const result = migrateApplicationData(source);
+
+    expect(result.schemaVersion).toBe(2);
+    expect(result.appointments[0]?.schemaVersion).toBe(2);
+    expect(result.appointments[0]).not.toHaveProperty("recordOrigin");
+  });
+
+  it("v1 无取消原因记录迁移后补历史占位且可再次按 v2 读取", () => {
+    const source = structuredClone(createValidData()) as unknown as {
+      schemaVersion: number;
+      appointments: Array<Record<string, unknown>>;
+    };
+    source.schemaVersion = 1;
+    const appointment = source.appointments[0]!;
+    appointment.schemaVersion = 1;
+    appointment.status = "cancelled";
+    appointment.cancelledAt = UPDATED_AT;
+    delete appointment.transactionAmountCents;
+    delete appointment.completedAt;
+    delete appointment.cancelReason;
+
+    const migrated = migrateApplicationData(source);
+
+    expect(migrated.appointments[0]).toMatchObject({
+      status: "cancelled",
+      cancelReason: "历史记录未填写取消原因",
+      schemaVersion: 2,
+    });
+    expect(migrateApplicationData(migrated)).toEqual(migrated);
   });
 
   it("允许停用物品和项目与启用对象重名，历史记录仍保留", () => {
@@ -183,7 +222,7 @@ describe("应用数据 migrations", () => {
 
   it("拒绝未来版本，避免旧应用覆盖新版本数据", () => {
     expectMigrationError(
-      () => migrateApplicationData({ schemaVersion: 2 }),
+      () => migrateApplicationData({ schemaVersion: 3 }),
       { code: "future-version", path: "$.schemaVersion" },
     );
   });
@@ -199,7 +238,7 @@ describe("应用数据 migrations", () => {
     );
   });
 
-  it("拒绝 v1 中无法识别的字段，避免恢复时静默丢失", () => {
+  it("拒绝 v2 中无法识别的字段，避免恢复时静默丢失", () => {
     const source = createValidData() as ApplicationData & {
       futureField?: string;
     };
@@ -241,6 +280,38 @@ describe("应用数据 migrations", () => {
     expectMigrationError(() => migrateApplicationData(source), {
       code: "invalid-data",
       path: "$.appointments[0].transactionAmountCents",
+    });
+  });
+
+  it("拒绝 v2 待执行记录携带后补标识", () => {
+    const source = createValidData() as unknown as Record<string, unknown>;
+    const appointment = (
+      source.appointments as Array<Record<string, unknown>>
+    )[0]!;
+    appointment.status = "pending";
+    appointment.recordOrigin = "backfilled";
+    delete appointment.transactionAmountCents;
+    delete appointment.completedAt;
+
+    expectMigrationError(() => migrateApplicationData(source), {
+      code: "invalid-data",
+      path: "$.appointments[0].recordOrigin",
+    });
+  });
+
+  it("拒绝 v2 已取消记录缺少取消原因", () => {
+    const source = createValidData() as unknown as Record<string, unknown>;
+    const appointment = (
+      source.appointments as Array<Record<string, unknown>>
+    )[0]!;
+    appointment.status = "cancelled";
+    appointment.cancelledAt = UPDATED_AT;
+    delete appointment.transactionAmountCents;
+    delete appointment.completedAt;
+
+    expectMigrationError(() => migrateApplicationData(source), {
+      code: "invalid-data",
+      path: "$.appointments[0].cancelReason",
     });
   });
 });

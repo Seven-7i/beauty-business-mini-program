@@ -11,6 +11,7 @@ import {
   type CompleteAppointmentInput,
   type AppointmentManagementService,
   type SavePendingAppointmentInput,
+  type SaveBackfilledAppointmentInput,
 } from "@/services/appointment-management-service";
 
 export type AppointmentSaveResult =
@@ -80,6 +81,12 @@ export function useAppointmentManagement(
     }
   }
 
+  /** 清除已经展示的操作错误，供重新打开或继续编辑弹层时复用。 */
+  function clearError(): void {
+    errorMessage.value = "";
+    errorKind.value = "";
+  }
+
   async function savePendingAppointment(
     input: SavePendingAppointmentInput,
   ): Promise<AppointmentSaveResult> {
@@ -137,8 +144,14 @@ export function useAppointmentManagement(
     submitting: readonly(submitting),
     errorMessage: readonly(errorMessage),
     errorKind: readonly(errorKind),
+    clearError,
     refresh,
     savePendingAppointment,
+    saveBackfilledAppointment: (input: SaveBackfilledAppointmentInput) =>
+      runStatusMutation(
+        () => service.saveBackfilledAppointment(input),
+        "后补预约保存失败，请稍后重试",
+      ),
     cancelAppointment: (input: CancelAppointmentInput) =>
       runStatusMutation(
         () => service.cancelAppointment(input),

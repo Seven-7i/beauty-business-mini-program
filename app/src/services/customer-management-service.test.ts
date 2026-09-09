@@ -10,7 +10,7 @@ const NOW = "2026-08-08T11:00:00.000Z";
 
 function createEmptyData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -177,7 +177,7 @@ describe("顾客管理用例", () => {
       status: "pending",
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1,
+      schemaVersion: 2,
     } as AppointmentV1;
     const referencedMemory = createMemoryRepository({
       ...createEmptyData(),

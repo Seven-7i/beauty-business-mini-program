@@ -3,7 +3,7 @@ import type { ApplicationData } from "@/domain/data-schema";
 import { useBeautyHomeOverview } from "./useBeautyHomeOverview";
 
 const emptyData: ApplicationData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   settings: { schemaVersion: 1 },
   unlockedModules: ["beauty"],
   backupMetadata: { schemaVersion: 1 },

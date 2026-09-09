@@ -12,7 +12,7 @@ const CREATED_AT = "2026-08-06T08:30:00.000Z";
 
 function createData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -172,7 +172,7 @@ describe("产品级备份 envelope", () => {
 
   it("完整性有效但数据 schema 来自未来版本时提示升级", () => {
     const envelope = parseGeneratedEnvelope();
-    envelope.data = { schemaVersion: 2 };
+    envelope.data = { schemaVersion: 3 };
     resign(envelope);
 
     expectBackupError(
@@ -181,7 +181,7 @@ describe("产品级备份 envelope", () => {
     );
   });
 
-  it("完整性有效的阶段 0 数据会迁移为当前 v1 空业务快照", () => {
+  it("完整性有效的阶段 0 数据会迁移为当前 v2 空业务快照", () => {
     const envelope = parseGeneratedEnvelope();
     envelope.data = {
       unlockedModules: ["beauty"],
@@ -195,11 +195,80 @@ describe("产品级备份 envelope", () => {
     );
 
     expect(result.data).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       settings: { schemaVersion: 1, defaultModuleId: "beauty" },
       unlockedModules: ["beauty"],
     });
     expect(result.summary.hasBusinessData).toBe(false);
+  });
+
+  it("预检 v1 备份时兼容无原因的历史取消预约", () => {
+    const envelope = parseGeneratedEnvelope();
+    const legacy = structuredClone(createData()) as unknown as Record<
+      string,
+      unknown
+    >;
+    legacy.schemaVersion = 1;
+    legacy.projects = [
+      {
+        id: "project-1",
+        name: "补水护理",
+        standardPriceCents: 8800,
+        durationMinutes: 60,
+        defaultUsages: [],
+        status: "active",
+        createdAt: CREATED_AT,
+        updatedAt: CREATED_AT,
+        schemaVersion: 1,
+      },
+    ];
+    legacy.customers = [
+      {
+        id: "customer-1",
+        nickname: "小雨",
+        phone: "13800138000",
+        addresses: [],
+        status: "active",
+        createdAt: CREATED_AT,
+        updatedAt: CREATED_AT,
+        schemaVersion: 1,
+      },
+    ];
+    legacy.appointments = [
+      {
+        id: "appointment-legacy-cancelled",
+        customerId: "customer-1",
+        projectSnapshots: [
+          {
+            projectId: "project-1",
+            name: "补水护理",
+            standardPriceCents: 8800,
+            durationMinutes: 60,
+          },
+        ],
+        standardAmountCents: 8800,
+        estimatedDurationMinutes: 60,
+        actualUsages: [],
+        scheduledAt: CREATED_AT,
+        serviceAddressSnapshot: { addressText: "建设路 8 号" },
+        status: "cancelled",
+        cancelledAt: CREATED_AT,
+        createdAt: CREATED_AT,
+        updatedAt: CREATED_AT,
+        schemaVersion: 1,
+      },
+    ];
+    envelope.data = legacy;
+    resign(envelope);
+
+    expect(
+      preflightBackupFileContent(JSON.stringify(envelope), "1.0.0").data
+        .appointments[0],
+    ).toMatchObject({
+      status: "cancelled",
+      cancelReason: "历史记录未填写取消原因",
+      schemaVersion: 2,
+    });
   });
 
   it("较新应用版本生成的备份提示先升级", () => {

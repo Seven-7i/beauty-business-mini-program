@@ -113,9 +113,10 @@ describe("顾客业务规则", () => {
       serviceAddressSnapshot: { addressText: "测试地址" },
       status: "cancelled",
       cancelledAt: NOW,
+      cancelReason: "顾客取消",
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1,
+      schemaVersion: 2,
     };
 
     expect(() => assertCustomerCanBeDeleted(customer.id, [appointment])).toThrow(

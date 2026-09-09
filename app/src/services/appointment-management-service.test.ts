@@ -11,7 +11,7 @@ const NOW = "2026-08-08T12:00:00.000Z";
 
 function createData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -150,7 +150,7 @@ describe("待执行预约管理用例", () => {
     const updated = await service.savePendingAppointment({
       ...createInput(),
       appointmentId: created.id,
-      actualUsageInputs: [
+      expectedUsageInputs: [
         { inventoryItemId: "item-1", quantityInput: "10" },
       ],
       scheduledAt: "2026-08-10T10:00:00.000Z",
@@ -229,6 +229,186 @@ describe("待执行预约管理用例", () => {
     const restored = await service.restoreCancelledAppointment(created.id);
     expect(restored.status).toBe("pending");
     expect(restored).not.toHaveProperty("cancelledAt");
+  });
+
+  it("取消预约必须填写原因，空白输入不会改变预约状态", async () => {
+    const memory = createMemoryRepository();
+    const service = createAppointmentManagementService({
+      repository: memory.repository,
+      now: () => new Date(NOW),
+      createId: () => "appointment-1",
+    });
+    const created = await service.savePendingAppointment(createInput());
+
+    await expect(
+      service.cancelAppointment({
+        appointmentId: created.id,
+        cancelReason: "   ",
+      }),
+    ).rejects.toThrow("请填写取消原因");
+    expect(memory.readData().appointments[0]?.status).toBe("pending");
+    expect(memory.readData().inventoryItems[0]?.currentQuantity).toBe("10");
+  });
+
+  it("后补完成直接保存最终状态、保留来源标识并扣减实际用量", async () => {
+    const memory = createMemoryRepository();
+    const service = createAppointmentManagementService({
+      repository: memory.repository,
+      now: () => new Date(NOW),
+      createId: () => "appointment-backfilled-completed",
+      createMovementId: () => "movement-backfilled",
+    });
+
+    const completed = await service.saveBackfilledAppointment({
+      outcome: "completed",
+      customerId: "customer-1",
+      projectIds: ["project-1"],
+      scheduledAt: "2026-08-01T10:00:00.000Z",
+      completedAt: "2026-08-01T11:00:00.000Z",
+      transactionAmountInput: "80",
+      actualUsageInputs: [
+        { inventoryItemId: "item-1", quantityInput: "1.5" },
+      ],
+      serviceAddress: { addressText: "建设路 8 号" },
+    });
+
+    expect(completed).toMatchObject({
+      status: "completed",
+      recordOrigin: "backfilled",
+      transactionAmountCents: 8000,
+      actualUsages: [{ inventoryItemId: "item-1", quantity: "1.5" }],
+    });
+    expect(memory.readData().appointments).toEqual([completed]);
+    expect(memory.readData().inventoryItems[0]?.currentQuantity).toBe("8.5");
+    expect(memory.readData().inventoryMovements).toEqual([
+      expect.objectContaining({
+        id: "movement-backfilled",
+        appointmentId: completed.id,
+        deltaQuantity: "-1.5",
+      }),
+    ]);
+    await expect(
+      service.revertCompletedAppointment(completed.id),
+    ).rejects.toThrow("后补完成记录不能撤销为待执行");
+  });
+
+  it("后补完成按历史时间回放库存，不受当前可用量前置限制", async () => {
+    const initial = createData();
+    initial.inventoryItems[0]!.currentQuantity = "1";
+    initial.inventoryMovements = [
+      {
+        id: "movement-initial",
+        inventoryItemId: "item-1",
+        type: "initial",
+        beforeQuantity: "0",
+        deltaQuantity: "10",
+        afterQuantity: "10",
+        occurredAt: "2026-08-01T08:00:00.000Z",
+        appointmentDeleted: false,
+        createdAt: "2026-08-01T08:00:00.000Z",
+        updatedAt: "2026-08-01T08:00:00.000Z",
+        schemaVersion: 1,
+      },
+      {
+        id: "movement-stocktake",
+        inventoryItemId: "item-1",
+        type: "stocktake",
+        beforeQuantity: "10",
+        deltaQuantity: "-9",
+        afterQuantity: "1",
+        occurredAt: "2026-08-02T08:00:00.000Z",
+        appointmentDeleted: false,
+        createdAt: "2026-08-02T08:00:00.000Z",
+        updatedAt: "2026-08-02T08:00:00.000Z",
+        schemaVersion: 1,
+      },
+    ];
+    const memory = createMemoryRepository(initial);
+    const service = createAppointmentManagementService({
+      repository: memory.repository,
+      now: () => new Date(NOW),
+      createId: () => "appointment-backfilled-history",
+      createMovementId: () => "movement-backfilled-history",
+    });
+
+    await service.saveBackfilledAppointment({
+      outcome: "completed",
+      customerId: "customer-1",
+      projectIds: ["project-1"],
+      scheduledAt: "2026-08-01T09:00:00.000Z",
+      completedAt: "2026-08-01T10:00:00.000Z",
+      transactionAmountInput: "88",
+      actualUsageInputs: [
+        { inventoryItemId: "item-1", quantityInput: "5" },
+      ],
+      serviceAddress: { addressText: "建设路 8 号" },
+    });
+
+    expect(memory.readData().inventoryItems[0]?.currentQuantity).toBe("1");
+    expect(memory.readData().inventoryMovements).toEqual([
+      expect.objectContaining({ id: "movement-initial", afterQuantity: "10" }),
+      expect.objectContaining({
+        id: "movement-backfilled-history",
+        beforeQuantity: "10",
+        afterQuantity: "5",
+      }),
+      expect.objectContaining({
+        id: "movement-stocktake",
+        beforeQuantity: "5",
+        afterQuantity: "1",
+      }),
+    ]);
+  });
+
+  it("后补未完成直接保存为已取消，不占用或扣减库存", async () => {
+    const memory = createMemoryRepository();
+    const service = createAppointmentManagementService({
+      repository: memory.repository,
+      now: () => new Date(NOW),
+      createId: () => "appointment-backfilled-cancelled",
+    });
+
+    const cancelled = await service.saveBackfilledAppointment({
+      outcome: "cancelled",
+      customerId: "customer-1",
+      projectIds: ["project-1"],
+      scheduledAt: "2026-08-01T10:00:00.000Z",
+      cancelReason: " 顾客临时有事 ",
+      serviceAddress: { addressText: "建设路 8 号" },
+    });
+
+    expect(cancelled).toMatchObject({
+      status: "cancelled",
+      recordOrigin: "backfilled",
+      cancelReason: "顾客临时有事",
+      actualUsages: [],
+    });
+    expect(memory.readData().inventoryItems[0]?.currentQuantity).toBe("10");
+    expect(memory.readData().inventoryMovements).toEqual([]);
+    await expect(
+      service.restoreCancelledAppointment(cancelled.id),
+    ).rejects.toThrow("后补取消记录不能恢复为待执行");
+  });
+
+  it("后补预约拒绝未来业务时间且不写入记录", async () => {
+    const memory = createMemoryRepository();
+    const service = createAppointmentManagementService({
+      repository: memory.repository,
+      now: () => new Date(NOW),
+      createId: () => "appointment-backfilled-future",
+    });
+
+    await expect(
+      service.saveBackfilledAppointment({
+        outcome: "cancelled",
+        customerId: "customer-1",
+        projectIds: ["project-1"],
+        scheduledAt: "2026-08-09T10:00:00.000Z",
+        cancelReason: "顾客临时有事",
+        serviceAddress: { addressText: "建设路 8 号" },
+      }),
+    ).rejects.toThrow("开始时间不能晚于当前时间");
+    expect(memory.readData().appointments).toEqual([]);
   });
 
   it("完成预约精确转成交金额并原子生成库存消耗", async () => {

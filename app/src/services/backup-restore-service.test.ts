@@ -11,7 +11,7 @@ const NOW = new Date(2026, 7, 8, 14, 30, 0, 0);
 
 function createData(name = "当前数据"): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -53,6 +53,7 @@ function createRepository(initial = createData()) {
         snapshot = {
           ...snapshot,
           ...structuredClone(data.beauty),
+          schemaVersion: snapshot.schemaVersion,
         };
       }
     },

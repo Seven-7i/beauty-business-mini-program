@@ -13,7 +13,7 @@ const NOW = "2026-08-08T08:30:00.000Z";
 
 function emptyData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -103,7 +103,7 @@ function createPendingAppointment(
     status: "pending",
     createdAt: NOW,
     updatedAt: NOW,
-    schemaVersion: 1,
+    schemaVersion: 2,
     ...overrides,
   };
 }
@@ -150,9 +150,10 @@ describe("业务数据变更命令", () => {
           serviceAddressSnapshot: { addressText: "测试地址" },
           status: "cancelled" as const,
           cancelledAt: NOW,
+          cancelReason: "顾客取消",
           createdAt: NOW,
           updatedAt: NOW,
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
         },
       ],
     };
@@ -246,7 +247,7 @@ describe("业务数据变更命令", () => {
       status: "pending" as const,
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
     };
     const initialMovement: InventoryMovementV1 = {
       ...movement,
@@ -594,7 +595,7 @@ describe("业务数据变更命令", () => {
       status: "pending" as const,
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
     };
     const candidateAppointment = {
       ...existingAppointment,
@@ -657,7 +658,7 @@ describe("业务数据变更命令", () => {
       status: "pending" as const,
       createdAt: NOW,
       updatedAt: NOW,
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
     };
 
     expect(() =>
@@ -714,6 +715,30 @@ describe("业务数据变更命令", () => {
     expect(next.inventoryMovements).toEqual([]);
   });
 
+  it("取消命令在事务边界拒绝空白原因", () => {
+    const appointment = createPendingAppointment();
+    expect(() =>
+      applyBusinessDataMutation(
+        {
+          ...emptyData(),
+          inventoryItems: [item],
+          projects: [project],
+          customers: [customer],
+          appointments: [appointment],
+        },
+        {
+          kind: "cancel-pending-appointment",
+          appointmentId: appointment.id,
+          expectedUpdatedAt: appointment.updatedAt,
+          cancelledAt: NOW,
+          cancelReason: "   ",
+          updatedAt: NOW,
+        },
+        NOW,
+      ),
+    ).toThrow("请填写取消原因");
+  });
+
   it("恢复取消按最新库存重新占用，不足时保持已取消", () => {
     const appointment = createPendingAppointment();
     const cancelledData = applyBusinessDataMutation(
@@ -729,6 +754,7 @@ describe("业务数据变更命令", () => {
         appointmentId: appointment.id,
         expectedUpdatedAt: appointment.updatedAt,
         cancelledAt: NOW,
+        cancelReason: "顾客临时取消",
         updatedAt: NOW,
       },
       NOW,
@@ -776,6 +802,85 @@ describe("业务数据变更命令", () => {
     expect(restored.status).toBe("pending");
     expect(restored).not.toHaveProperty("cancelledAt");
     expect(restored).not.toHaveProperty("cancelReason");
+  });
+
+  it("恢复与撤销命令在事务边界拒绝后补记录", () => {
+    const appointment = createPendingAppointment();
+    const cancelled = applyBusinessDataMutation(
+      {
+        ...emptyData(),
+        inventoryItems: [item],
+        projects: [project],
+        customers: [customer],
+        appointments: [appointment],
+      },
+      {
+        kind: "cancel-pending-appointment",
+        appointmentId: appointment.id,
+        expectedUpdatedAt: appointment.updatedAt,
+        cancelledAt: NOW,
+        cancelReason: "顾客临时取消",
+        updatedAt: NOW,
+      },
+      NOW,
+    ).appointments[0]!;
+    const backfilledCancelled = { ...cancelled, recordOrigin: "backfilled" as const };
+    expect(() =>
+      applyBusinessDataMutation(
+        {
+          ...emptyData(),
+          inventoryItems: [item],
+          appointments: [backfilledCancelled],
+        },
+        {
+          kind: "restore-cancelled-appointment",
+          appointmentId: backfilledCancelled.id,
+          expectedUpdatedAt: backfilledCancelled.updatedAt,
+          updatedAt: NOW,
+        },
+        NOW,
+      ),
+    ).toThrow("后补预约不能恢复为待执行");
+
+    const completed = applyBusinessDataMutation(
+      {
+        ...emptyData(),
+        inventoryItems: [item],
+        projects: [project],
+        customers: [customer],
+        appointments: [appointment],
+      },
+      {
+        kind: "complete-pending-appointment",
+        appointmentId: appointment.id,
+        expectedUpdatedAt: appointment.updatedAt,
+        actualUsages: appointment.actualUsages,
+        transactionAmountCents: 8800,
+        completedAt: NOW,
+        updatedAt: NOW,
+        movementIds: [
+          { inventoryItemId: item.id, movementId: "movement-completed" },
+        ],
+      },
+      NOW,
+    ).appointments[0]!;
+    const backfilledCompleted = { ...completed, recordOrigin: "backfilled" as const };
+    expect(() =>
+      applyBusinessDataMutation(
+        {
+          ...emptyData(),
+          inventoryItems: [item],
+          appointments: [backfilledCompleted],
+        },
+        {
+          kind: "revert-completed-appointment",
+          appointmentId: backfilledCompleted.id,
+          expectedUpdatedAt: backfilledCompleted.updatedAt,
+          updatedAt: NOW,
+        },
+        NOW,
+      ),
+    ).toThrow("后补预约不能撤销为待执行");
   });
 
   it("完成预约原子扣减库存并生成预约消耗记录", () => {
@@ -919,7 +1024,9 @@ describe("业务数据变更命令", () => {
         kind: "complete-pending-appointment",
         appointmentId: appointment.id,
         expectedUpdatedAt: appointment.updatedAt,
-        actualUsages: appointment.actualUsages,
+        actualUsages: [
+          { ...appointment.actualUsages[0]!, quantity: "3" },
+        ],
         transactionAmountCents: 8800,
         completedAt: NOW,
         updatedAt: NOW,
@@ -943,6 +1050,9 @@ describe("业务数据变更命令", () => {
     );
 
     expect(reverted.appointments[0]?.status).toBe("pending");
+    expect(reverted.appointments[0]?.actualUsages).toEqual(
+      appointment.actualUsages,
+    );
     expect(reverted.appointments[0]).not.toHaveProperty(
       "transactionAmountCents",
     );
@@ -981,6 +1091,7 @@ describe("业务数据变更命令", () => {
         appointmentId: appointment.id,
         expectedUpdatedAt: appointment.updatedAt,
         cancelledAt: NOW,
+        cancelReason: "顾客临时取消",
         updatedAt: NOW,
       },
       NOW,

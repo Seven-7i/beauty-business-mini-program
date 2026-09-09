@@ -1,29 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, type DeepReadonly } from "vue";
+import { computed, onMounted, shallowRef, type DeepReadonly } from "vue";
 import type {
+  AppointmentStatus,
   AppointmentV1,
-  CancelledAppointmentV1,
-  CompletedAppointmentV1,
   PendingAppointmentV1,
 } from "@/domain/data-schema";
 import type {
   AppointmentManagementService,
-  CancelAppointmentInput,
   CompleteAppointmentInput,
-  SavePendingAppointmentInput,
 } from "@/services/appointment-management-service";
+import { addDecimalQuantities } from "@/utils/decimal-quantity";
+import { buildCompletionUsageDrafts } from "../appointment-form-state";
 import { useAppointmentManagement } from "../composables/useAppointmentManagement";
-import AppointmentCancellationForm from "./AppointmentCancellationForm.vue";
 import AppointmentCompletionForm from "./AppointmentCompletionForm.vue";
-import AppointmentForm from "./AppointmentForm.vue";
 import AppointmentList from "./AppointmentList.vue";
 import RecoverableErrorNotice from "@/features/shared/components/RecoverableErrorNotice.vue";
 
-/** 预约页的业务用例与可选来源定位输入。 */
 interface AppointmentManagementProps {
   /** 页面可调用的预约管理窄用例。 */
   service: AppointmentManagementService;
-  /** 从库存动态进入时需要直接打开的来源预约标识。 */
+  /** 从库存动态进入时直接定位的来源预约。 */
   initialAppointmentId?: string;
 }
 
@@ -32,199 +28,116 @@ const {
   customers,
   projects,
   inventoryItems,
-  activeCustomers,
-  activeProjects,
   activeInventoryItems,
   appointmentsByStatus,
   loading,
   submitting,
   errorMessage,
   errorKind,
+  clearError,
   refresh,
-  savePendingAppointment,
-  cancelAppointment,
-  restoreCancelledAppointment,
   completeAppointment,
-  correctCompletedAppointment,
-  revertCompletedAppointment,
-  deleteAppointment,
 } = useAppointmentManagement(props.service);
-const appointmentForm = ref<InstanceType<typeof AppointmentForm> | null>(null);
+
+const query = shallowRef("");
+const activeStatus = shallowRef<AppointmentStatus>("pending");
 const completingAppointment = shallowRef<
-  DeepReadonly<PendingAppointmentV1 | CompletedAppointmentV1> | undefined
->();
-const cancellingAppointment = shallowRef<
-  DeepReadonly<PendingAppointmentV1> | undefined
->();
-const editingAppointment = shallowRef<
   DeepReadonly<PendingAppointmentV1> | undefined
 >();
 
-/** 编辑旧预约时把其已停用引用补回显示集合；这些对象不会出现在新预约选择中。 */
-const editingCustomers = computed(() => {
-  const referenced = customers.value.find(
-    (customer) => customer.id === editingAppointment.value?.customerId,
+/** 为正常预约完成弹层提供预计用量快照，旧记录为空时回退项目正常用量。 */
+const completionDefaultUsageInputs = computed(() => {
+  const current = completingAppointment.value;
+  return buildCompletionUsageDrafts(
+    current?.actualUsages ?? [],
+    current?.projectSnapshots.map((project) => project.projectId) ?? [],
+    projects.value,
+    addDecimalQuantities,
   );
-  return referenced && !activeCustomers.value.some(({ id }) => id === referenced.id)
-    ? [...activeCustomers.value, referenced]
-    : activeCustomers.value;
 });
-const editingProjects = computed(() => {
-  const ids = new Set(
-    editingAppointment.value?.projectSnapshots.map(({ projectId }) => projectId) ?? [],
-  );
-  return [
-    ...activeProjects.value,
-    ...projects.value.filter(
-      (project) =>
-        ids.has(project.id) &&
-        !activeProjects.value.some(({ id }) => id === project.id),
-    ),
-  ];
+
+const statusCounts = computed(() => ({
+  pending: appointmentsByStatus.value.filter(
+    (appointment) => appointment.status === "pending",
+  ).length,
+  completed: appointmentsByStatus.value.filter(
+    (appointment) => appointment.status === "completed",
+  ).length,
+  cancelled: appointmentsByStatus.value.filter(
+    (appointment) => appointment.status === "cancelled",
+  ).length,
+}));
+
+const visibleAppointments = computed(() => {
+  const keyword = query.value.trim().toLowerCase();
+  return appointmentsByStatus.value.filter((appointment) => {
+    if (appointment.status !== activeStatus.value) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    const customer = customers.value.find(
+      (candidate) => candidate.id === appointment.customerId,
+    );
+    return [
+      customer?.nickname,
+      customer?.phone,
+      ...appointment.projectSnapshots.map((project) => project.name),
+    ].some((value) => value?.toLowerCase().includes(keyword));
+  });
 });
-const editingInventoryItems = computed(() => {
-  const ids = new Set(
-    editingAppointment.value?.actualUsages.map(({ inventoryItemId }) =>
-      inventoryItemId,
+
+/** 完成弹层保留预计用量引用的停用物品，同时只允许新增启用物品。 */
+const completionInventoryItems = computed(() => {
+  const referencedIds = new Set(
+    completionDefaultUsageInputs.value.map(
+      (usage) => usage.inventoryItemId,
     ) ?? [],
   );
   return [
     ...activeInventoryItems.value,
     ...inventoryItems.value.filter(
       (item) =>
-        ids.has(item.id) &&
-        !activeInventoryItems.value.some(({ id }) => id === item.id),
+        referencedIds.has(item.id) &&
+        !activeInventoryItems.value.some(
+          (candidate) => candidate.id === item.id,
+        ),
     ),
   ];
 });
 
-async function submit(input: SavePendingAppointmentInput): Promise<void> {
-  const result = await savePendingAppointment(input);
-  if (result.kind === "saved") {
-    editingAppointment.value = undefined;
-    appointmentForm.value?.reset();
-    uni.showToast({ title: "预约已保存", icon: "success" });
-    return;
-  }
-  if (result.kind === "conflict") {
-    uni.showModal({
-      title: "预约时间有冲突",
-      content: `与 ${result.count} 条待执行预约时间重叠，仍要继续保存吗？`,
-      confirmText: "仍然保存",
-      success(modalResult) {
-        if (modalResult.confirm) {
-          void savePendingAppointment({
-            ...result.input,
-            confirmTimeConflict: true,
-          }).then((confirmed) => {
-            if (confirmed.kind === "saved") {
-              editingAppointment.value = undefined;
-              appointmentForm.value?.reset();
-              uni.showToast({ title: "预约已保存", icon: "success" });
-            }
-          });
-        }
-      },
-    });
-  }
+/** 打开统一新增预约页面。 */
+function openCreate(): void {
+  uni.navigateTo({ url: "/pages/appointment-create/index" });
 }
 
+/** 打开独立预约详情页。 */
+function openDetail(appointment: DeepReadonly<AppointmentV1>): void {
+  uni.navigateTo({
+    url: `/pages/appointment-detail/index?appointmentId=${encodeURIComponent(appointment.id)}`,
+  });
+}
+
+/** 打开正常预约完成弹层。 */
 function openCompletion(
   appointment: DeepReadonly<PendingAppointmentV1>,
 ): void {
-  cancellingAppointment.value = undefined;
-  editingAppointment.value = undefined;
+  clearError();
   completingAppointment.value = appointment;
 }
 
-function openCancellation(
-  appointment: DeepReadonly<PendingAppointmentV1>,
-): void {
-  completingAppointment.value = undefined;
-  editingAppointment.value = undefined;
-  cancellingAppointment.value = appointment;
-}
-
-function openEdit(appointment: DeepReadonly<PendingAppointmentV1>): void {
-  completingAppointment.value = undefined;
-  cancellingAppointment.value = undefined;
-  editingAppointment.value = appointment;
-}
-
+/** 提交完成信息并关闭弹层。 */
 async function submitCompletion(
   input: CompleteAppointmentInput,
 ): Promise<void> {
-  const correcting = completingAppointment.value?.status === "completed";
-  const saved = correcting
-    ? await correctCompletedAppointment(input)
-    : await completeAppointment(input);
-  if (saved) {
+  if (await completeAppointment(input)) {
     completingAppointment.value = undefined;
-    uni.showToast({
-      title: correcting ? "完成信息已更正" : "预约已完成",
-      icon: "success",
-    });
+    uni.showToast({ title: "预约已完成", icon: "success" });
   }
 }
 
-async function submitCancellation(
-  input: CancelAppointmentInput,
-): Promise<void> {
-  if (await cancelAppointment(input)) {
-    cancellingAppointment.value = undefined;
-    uni.showToast({ title: "预约已取消", icon: "success" });
-  }
-}
-
-function confirmRestore(
-  appointment: DeepReadonly<CancelledAppointmentV1>,
-): void {
-  uni.showModal({
-    title: "恢复取消",
-    content: "恢复后将重新占用库存；库存不足时不会改变当前取消状态。",
-    confirmText: "确认恢复",
-    success(modalResult) {
-      if (!modalResult.confirm) {
-        return;
-      }
-      void restoreCancelledAppointment(appointment.id).then((restored) => {
-        if (restored) {
-          uni.showToast({ title: "已恢复为待执行", icon: "success" });
-        }
-      });
-    },
-  });
-}
-
-function confirmRevertCompletion(
-  appointment: DeepReadonly<CompletedAppointmentV1>,
-): void {
-  uni.showModal({
-    title: "撤销完成",
-    content: "将补回该预约消耗并恢复待执行占用；这与删除已完成预约不同。",
-    confirmText: "确认撤销",
-    success(modalResult) {
-      if (!modalResult.confirm) {
-        return;
-      }
-      void revertCompletedAppointment(appointment.id).then((reverted) => {
-        if (reverted) {
-          uni.showToast({ title: "已恢复为待执行", icon: "success" });
-        }
-      });
-    },
-  });
-}
-
-function openCorrection(
-  appointment: DeepReadonly<CompletedAppointmentV1>,
-): void {
-  cancellingAppointment.value = undefined;
-  editingAppointment.value = undefined;
-  completingAppointment.value = appointment;
-}
-
-/** 首次读取后定位库存动态的来源预约；消耗记录只可能来自已完成预约。 */
+/** 首次读取并处理库存动态传入的预约定位。 */
 async function initialize(): Promise<void> {
   await refresh();
   if (!props.initialAppointmentId) {
@@ -234,76 +147,88 @@ async function initialize(): Promise<void> {
     (appointment) => appointment.id === props.initialAppointmentId,
   );
   if (source?.status === "completed") {
-    openCorrection(source);
-    return;
+    openDetail(source);
+  } else {
+    uni.showToast({ title: "来源预约不可用", icon: "none" });
   }
-  uni.showToast({ title: "来源预约不可用", icon: "none" });
-}
-
-function confirmDelete(appointment: DeepReadonly<AppointmentV1>): void {
-  const content =
-    appointment.status === "completed"
-      ? "删除后不补回已消耗库存，预约消耗记录会保留并标记来源已删除。"
-      : appointment.status === "pending"
-        ? "仅误建预约应彻底删除；删除后会立即释放库存占用。"
-        : "删除后取消原因和该预约记录将无法恢复。";
-  uni.showModal({
-    title: "彻底删除预约",
-    content,
-    confirmText: "彻底删除",
-    confirmColor: "#9a4a47",
-    success(modalResult) {
-      if (!modalResult.confirm) {
-        return;
-      }
-      void deleteAppointment(appointment.id).then((deleted) => {
-        if (!deleted) {
-          return;
-        }
-        if (completingAppointment.value?.id === appointment.id) {
-          completingAppointment.value = undefined;
-        }
-        if (cancellingAppointment.value?.id === appointment.id) {
-          cancellingAppointment.value = undefined;
-        }
-        if (editingAppointment.value?.id === appointment.id) {
-          editingAppointment.value = undefined;
-        }
-        uni.showToast({ title: "预约已删除", icon: "success" });
-      });
-    },
-  });
 }
 
 onMounted(initialize);
+defineExpose({ refresh });
 </script>
 
 <template>
   <view class="appointment-management">
-    <view class="appointment-management__intro">
-      <text class="appointment-management__eyebrow">美容 · 预约执行</text>
-      <text class="appointment-management__title">预约</text>
-      <text class="appointment-management__description">待执行预约占用库存但不扣减；时间重叠会警告并允许确认保存。</text>
+    <view class="appointment-management__toolbar">
+      <view class="appointment-management__search">
+        <u-icon name="search" color="#66616d" size="24" />
+        <input v-model="query" placeholder="搜索顾客或项目" confirm-type="search" />
+      </view>
+      <button class="appointment-management__create" @click="openCreate">
+        <u-icon name="plus" color="#ffffff" size="14" />
+        <text>新增</text>
+      </button>
     </view>
-    <view v-if="(!activeCustomers.length || !activeProjects.length) && !editingAppointment" class="appointment-management__prerequisite">
-      新增预约前，请先准备至少一位启用顾客和一个启用服务项目。
+
+    <view class="status-tabs">
+      <button
+        :class="{ 'status-tabs__item--active': activeStatus === 'pending' }"
+        @click="activeStatus = 'pending'"
+      >
+        待执行 {{ statusCounts.pending }}
+      </button>
+      <button
+        :class="{ 'status-tabs__item--active': activeStatus === 'completed' }"
+        @click="activeStatus = 'completed'"
+      >
+        已完成 {{ statusCounts.completed }}
+      </button>
+      <button
+        :class="{ 'status-tabs__item--active': activeStatus === 'cancelled' }"
+        @click="activeStatus = 'cancelled'"
+      >
+        已取消 {{ statusCounts.cancelled }}
+      </button>
     </view>
-    <AppointmentForm v-else ref="appointmentForm" :customers="editingCustomers" :projects="editingProjects" :inventory-items="editingInventoryItems" :submitting="submitting" :editing-appointment="editingAppointment" @submit="submit" @cancel-edit="editingAppointment = undefined" />
-    <AppointmentCompletionForm v-if="completingAppointment" :appointment="completingAppointment" :inventory-items="activeInventoryItems" :submitting="submitting" @submit="submitCompletion" @cancel="completingAppointment = undefined" />
-    <AppointmentCancellationForm v-if="cancellingAppointment" :appointment="cancellingAppointment" :submitting="submitting" @submit="submitCancellation" @cancel="cancellingAppointment = undefined" />
-    <RecoverableErrorNotice v-if="errorMessage" :message="errorMessage" :retryable="errorKind === 'read'" :retrying="loading" @retry="refresh" />
+
+    <RecoverableErrorNotice
+      v-if="errorMessage"
+      :message="errorMessage"
+      :retryable="errorKind === 'read'"
+      :retrying="loading"
+      @retry="refresh"
+    />
     <view v-if="loading" class="appointment-management__loading">正在读取本机预约</view>
-    <AppointmentList v-else :appointments="appointmentsByStatus" :customers="customers" :disabled="submitting" @edit="openEdit" @complete="openCompletion" @cancel="openCancellation" @restore-cancelled="confirmRestore" @correct-completed="openCorrection" @revert-completed="confirmRevertCompletion" @delete="confirmDelete" />
+    <AppointmentList
+      v-else
+      :appointments="visibleAppointments"
+      :customers="customers"
+      :disabled="submitting"
+      @open-detail="openDetail"
+      @complete="openCompletion"
+    />
+    <AppointmentCompletionForm
+      v-if="completingAppointment"
+      :appointment="completingAppointment"
+      :inventory-items="completionInventoryItems"
+      :default-usage-inputs="completionDefaultUsageInputs"
+      :submitting="submitting"
+      :error-message="errorMessage"
+      @submit="submitCompletion"
+      @change="clearError"
+      @cancel="completingAppointment = undefined"
+    />
   </view>
 </template>
 
 <style scoped>
-.appointment-management { min-height: 100vh; box-sizing: border-box; padding: 36rpx 28rpx calc(50rpx + env(safe-area-inset-bottom)); }
-.appointment-management__intro { display: flex; padding: 0 6rpx 28rpx; flex-direction: column; }
-.appointment-management__eyebrow { color: #31549e; font-size: 22rpx; font-weight: 600; }
-.appointment-management__title { margin-top: 12rpx; color: #1a2538; font-size: 42rpx; font-weight: 700; }
-.appointment-management__description { margin-top: 12rpx; color: #707b8f; font-size: 23rpx; line-height: 1.6; }
-.appointment-management__prerequisite, .appointment-management__loading { padding: 20rpx; border-radius: 13rpx; font-size: 22rpx; }
-.appointment-management__prerequisite, .appointment-management__loading { background: #eef2f8; color: #68748a; }
-.appointment-management__loading { margin-top: 18rpx; text-align: center; }
+.appointment-management { min-height: 100vh; box-sizing: border-box; padding: 26rpx 28rpx calc(40rpx + env(safe-area-inset-bottom)); background: #fbf8fb; }
+.appointment-management__toolbar { display: flex; gap: 20rpx; }
+.appointment-management__search { display: flex; height: 86rpx; min-width: 0; align-items: center; gap: 14rpx; padding: 0 22rpx; flex: 1; border: 2rpx solid #f0ebf2; border-radius: 18rpx; background: #fff; box-shadow: 0 8rpx 22rpx rgba(49, 35, 62, 0.04); }
+.appointment-management__search input { min-width: 0; height: 80rpx; flex: 1; color: #29242e; font-size: 25rpx; }
+.appointment-management__create { display: flex; width: 152rpx; height: 86rpx; align-items: center; justify-content: center; gap: 10rpx; border-radius: 18rpx; background: linear-gradient(135deg, #6041df, #4526d4); color: #fff; font-size: 25rpx; line-height: 86rpx; }
+.status-tabs { display: flex; margin-top: 24rpx; padding: 8rpx; border: 2rpx solid #f0ebf2; border-radius: 18rpx; background: #fff; }
+.status-tabs button { height: 70rpx; flex: 1; border-radius: 13rpx; background: transparent; color: #17141b; font-size: 24rpx; line-height: 70rpx; }
+.status-tabs .status-tabs__item--active { background: #f1edfb; color: #432bd0; font-weight: 600; }
+.appointment-management__loading { margin-top: 20rpx; padding: 34rpx; border-radius: 16rpx; background: #fff; color: #7e7785; font-size: 23rpx; text-align: center; }
 </style>

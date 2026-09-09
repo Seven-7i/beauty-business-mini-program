@@ -14,7 +14,7 @@ const NOW = "2026-08-08T06:30:00.000Z";
 
 function createEmptyData(): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1 },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },

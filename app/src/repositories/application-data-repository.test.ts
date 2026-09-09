@@ -106,7 +106,7 @@ class MemoryRollbackFiles {
 
 function createData(id: string, name: string): ApplicationData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: { schemaVersion: 1, defaultModuleId: "beauty" },
     unlockedModules: ["beauty"],
     backupMetadata: { schemaVersion: 1 },
@@ -153,7 +153,7 @@ describe("应用完整数据仓储", () => {
     );
 
     await expect(repository.readSnapshot()).resolves.toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       settings: { schemaVersion: 1, defaultModuleId: "beauty" },
       unlockedModules: ["beauty"],
       inventoryItems: [],
@@ -168,11 +168,92 @@ describe("应用完整数据仓储", () => {
     await repository.replaceSnapshot(data);
 
     await expect(repository.readSnapshot()).resolves.toEqual(data);
-    expect(storage.values.get("bm:meta:schema")).toBe(1);
+    expect(storage.values.get("bm:meta:schema")).toBe(2);
     expect(storage.values.has("bm:entity:inventory-item:item-1")).toBe(true);
     expect(storage.values.has("bm:index:inventory-item:manifest")).toBe(true);
     expect(storage.values.has("bm:txn:recovery")).toBe(false);
     expect(files.contents).toBeUndefined();
+  });
+
+  it("读取 v1 分片中的无原因取消预约时迁移为可用的 v2 记录", async () => {
+    const { repository, storage } = createRepository();
+    const data = createData("item-1", "精华液");
+    data.projects = [
+      {
+        id: "project-1",
+        name: "补水护理",
+        standardPriceCents: 8800,
+        durationMinutes: 60,
+        defaultUsages: [],
+        status: "active",
+        createdAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString(),
+        schemaVersion: 1,
+      },
+    ];
+    data.customers = [
+      {
+        id: "customer-1",
+        nickname: "小雨",
+        phone: "13800138000",
+        addresses: [],
+        status: "active",
+        createdAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString(),
+        schemaVersion: 1,
+      },
+    ];
+    data.appointments = [
+      {
+        id: "appointment-legacy-cancelled",
+        customerId: "customer-1",
+        projectSnapshots: [
+          {
+            projectId: "project-1",
+            name: "补水护理",
+            standardPriceCents: 8800,
+            durationMinutes: 60,
+          },
+        ],
+        standardAmountCents: 8800,
+        estimatedDurationMinutes: 60,
+        actualUsages: [],
+        scheduledAt: NOW.toISOString(),
+        serviceAddressSnapshot: { addressText: "建设路 8 号" },
+        status: "cancelled",
+        cancelledAt: NOW.toISOString(),
+        cancelReason: "临时取消",
+        createdAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString(),
+        schemaVersion: 2,
+      },
+    ];
+    await repository.replaceSnapshot(data);
+
+    storage.values.set("bm:meta:schema", 1);
+    const legacyAppointment = structuredClone(data.appointments[0]) as unknown as
+      | Record<string, unknown>
+      | undefined;
+    delete legacyAppointment?.cancelReason;
+    if (legacyAppointment) {
+      legacyAppointment.schemaVersion = 1;
+      storage.values.set(
+        "bm:entity:appointment:appointment-legacy-cancelled",
+        legacyAppointment,
+      );
+    }
+
+    await expect(repository.readSnapshot()).resolves.toMatchObject({
+      schemaVersion: 2,
+      appointments: [
+        {
+          id: "appointment-legacy-cancelled",
+          status: "cancelled",
+          cancelReason: "历史记录未填写取消原因",
+          schemaVersion: 2,
+        },
+      ],
+    });
   });
 
   it("记录成功导出时只更新备份元数据并保留全部业务记录", async () => {
@@ -210,7 +291,7 @@ describe("应用完整数据仓储", () => {
 
     await repository.replaceSelectedModules({
       beauty: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         inventoryItems: backup.inventoryItems,
         inventoryMovements: backup.inventoryMovements,
         projects: backup.projects,
@@ -248,7 +329,7 @@ describe("应用完整数据仓储", () => {
     await expect(
       repository.replaceSelectedModules({
         beauty: {
-          schemaVersion: 1,
+          schemaVersion: 2,
           inventoryItems: backup.inventoryItems,
           inventoryMovements: backup.inventoryMovements,
           projects: backup.projects,
@@ -504,7 +585,7 @@ describe("应用完整数据仓储", () => {
           status: "pending",
           createdAt: NOW.toISOString(),
           updatedAt: NOW.toISOString(),
-          schemaVersion: 1,
+          schemaVersion: 2,
         },
         expectedReferences: {
           customerUpdatedAt: NOW.toISOString(),
@@ -576,7 +657,7 @@ describe("应用完整数据仓储", () => {
         status: "pending",
         createdAt: NOW.toISOString(),
         updatedAt: NOW.toISOString(),
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
     ];
     await repository.replaceSnapshot(previous);
@@ -785,7 +866,7 @@ describe("应用完整数据仓储", () => {
       "committed-cleanup",
     );
     await expect(repository.readSnapshot()).resolves.toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
     });
   });
 
@@ -1015,8 +1096,8 @@ describe("应用完整数据仓储", () => {
     expect(secondFinished).toBe(false);
 
     releaseRead();
-    await expect(firstRead).resolves.toMatchObject({ schemaVersion: 1 });
-    await expect(secondRead).resolves.toMatchObject({ schemaVersion: 1 });
+    await expect(firstRead).resolves.toMatchObject({ schemaVersion: 2 });
+    await expect(secondRead).resolves.toMatchObject({ schemaVersion: 2 });
   });
 
   it("整体恢复与模块授权保存共享队列，后提交的授权不会被恢复覆盖", async () => {
