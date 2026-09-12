@@ -175,4 +175,15 @@ describe("预约执行定稿契约", () => {
     expect(list).toContain('? "后补"');
     expect(list).not.toContain('"后补 · 已完成"');
   });
+
+  it("日程月历仅在未选中今天时提供回到今天操作，不展示左右切换按钮或手势说明", () => {
+    const calendar = readSource("./components/AppointmentCalendar.vue");
+
+    expect(calendar).toContain("calendar-card__actions--hidden");
+    expect(calendar).toContain("visibility: hidden;");
+    expect(calendar).toContain(">回到今天</view>");
+    expect(calendar).not.toContain("calendar-card__arrow");
+    expect(calendar).not.toContain("calendar-card__mode-hint");
+    expect(calendar).not.toContain("#45a471");
+  });
 });

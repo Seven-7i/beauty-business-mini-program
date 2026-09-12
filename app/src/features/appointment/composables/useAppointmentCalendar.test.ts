@@ -22,10 +22,10 @@ describe("预约月历编排", () => {
     );
 
     expect(flow.selectedDateKey.value).toBe("2026-08-08");
-    flow.nextMonth();
+    flow.nextPeriod();
     expect(flow.calendar.value.monthIndex).toBe(8);
     expect(flow.selectedDateKey.value).toBe("2026-09-01");
-    flow.previousMonth();
+    flow.previousPeriod();
     expect(flow.selectedDateKey.value).toBe("2026-08-01");
   });
 
