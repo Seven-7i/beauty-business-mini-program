@@ -38,7 +38,7 @@ const currentExportButtonText = computed(() => {
   <view class="restore-section">
     <view class="restore-section__heading">
       <text class="restore-section__eyebrow">恢复</text>
-      <text class="restore-section__title">从备份恢复</text>
+      <text class="restore-section__title">选择文件后先进行只读校验</text>
       <text class="restore-section__description">
         选择文件后先进行只读校验，不会立即修改本机数据。
       </text>
@@ -194,8 +194,8 @@ const currentExportButtonText = computed(() => {
   padding: 32rpx;
   border: 2rpx solid #e1e5ec;
   border-radius: 22rpx;
-  background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(28, 42, 68, 0.05);
+  background: #f6effc;
+  box-shadow: none;
 }
 
 .restore-section__heading,
@@ -204,22 +204,18 @@ const currentExportButtonText = computed(() => {
   flex-direction: column;
 }
 
-.restore-section__eyebrow {
-  color: #31549e;
-  font-size: 22rpx;
-  font-weight: 600;
-}
+.restore-section__eyebrow { display: none; }
 
 .restore-section__title {
-  margin-top: 8rpx;
-  color: #172033;
-  font-size: 31rpx;
+  margin-top: 0;
+  color: #30253b;
+  font-size: 27rpx;
   font-weight: 700;
 }
 
 .restore-section__description {
   margin-top: 12rpx;
-  color: #717a8a;
+  color: #756b80;
   font-size: 23rpx;
   line-height: 1.55;
 }
@@ -328,8 +324,8 @@ const currentExportButtonText = computed(() => {
   margin-top: 22rpx;
   padding: 18rpx 20rpx;
   border-radius: 14rpx;
-  background: #f2f4f7;
-  color: #606a7c;
+  background: rgba(255, 255, 255, 0.68);
+  color: #756b80;
   font-size: 23rpx;
   line-height: 1.55;
 }
@@ -370,17 +366,17 @@ const currentExportButtonText = computed(() => {
   align-items: center;
   justify-content: center;
   margin-top: 18rpx;
-  border: 2rpx solid #3156a9;
-  border-radius: 16rpx;
-  background: #ffffff;
-  color: #294da8;
+  border: 2rpx solid transparent;
+  border-radius: 999rpx;
+  background: #7954a0;
+  color: #ffffff;
   font-size: 27rpx;
   font-weight: 600;
 }
 
 .restore-section__button--primary {
   border-color: transparent;
-  background: #3159b5;
+  background: #7954a0;
   color: #ffffff;
 }
 

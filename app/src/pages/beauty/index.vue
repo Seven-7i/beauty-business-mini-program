@@ -2,12 +2,12 @@
 import { onMounted, shallowRef } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
-import BackupRestorePanel from "@/features/backup-restore/components/BackupRestorePanel.vue";
 import { useBackupRestoreFlow } from "@/features/backup-restore/composables/useBackupRestoreFlow";
 import AppointmentCalendar from "@/features/appointment/components/AppointmentCalendar.vue";
 import { useAppointmentCalendar } from "@/features/appointment/composables/useAppointmentCalendar";
 import BeautyModuleHome from "@/features/beauty-module/components/BeautyModuleHome.vue";
 import BeautyModuleNavigation from "@/features/beauty-module/components/BeautyModuleNavigation.vue";
+import BeautyDataPanel from "@/features/beauty-module/components/BeautyDataPanel.vue";
 import { useBeautyHomeOverview } from "@/features/beauty-module/composables/useBeautyHomeOverview";
 import type { BeautyModuleTab } from "@/features/beauty-module/types";
 import BeautyReports from "@/features/statistics/components/BeautyReports.vue";
@@ -32,8 +32,18 @@ const exportConfirmations = createPendingExportConfirmationService({
   storage,
   repository,
 });
-const { overview, customers, loading, errorMessage, refresh } =
-  useBeautyHomeOverview(repository);
+const {
+  overview,
+  reportOverview,
+  reportMonth,
+  canSelectNextReportMonth,
+  customers,
+  loading,
+  errorMessage,
+  refresh,
+  selectPreviousReportMonth,
+  selectNextReportMonth,
+} = useBeautyHomeOverview(repository);
 const appointmentCalendar = useAppointmentCalendar(repository);
 const activeTab = shallowRef<BeautyModuleTab>("home");
 const backupService = createBackupRestoreService({
@@ -52,6 +62,8 @@ const {
   sharePreparedExport,
   confirmExportSent,
   confirmExportCancelled,
+  lastExportedAt,
+  lastExportFileName,
   prepareCurrentDataBeforeRestore,
   selectRestoreFile,
   confirmRestore,
@@ -205,26 +217,29 @@ onShow(refreshActiveTab);
     />
     <BeautyReports
       v-else-if="activeTab === 'reports'"
-      :overview="overview"
+      :overview="reportOverview"
+      :month="reportMonth"
+      :can-select-next-month="canSelectNextReportMonth"
       :loading="loading"
       :error-message="errorMessage"
+      @previous-month="selectPreviousReportMonth"
+      @next-month="selectNextReportMonth"
       @retry="refresh"
     />
-    <BackupRestorePanel
+    <BeautyDataPanel
       v-else
       :export-state="backupExportState"
       :restore-state="backupRestoreState"
       :busy="backupBusy"
-      context="beauty"
-      export-scope="beauty"
-      :allow-scope-selection="false"
+      :last-exported-at="lastExportedAt"
+      :last-export-file-name="lastExportFileName"
       @prepare-export="prepareBackupExport"
       @share-export="shareAndConfirmExport"
       @confirm-export-sent="confirmExportSent"
       @confirm-export-cancelled="confirmExportCancelled"
       @select-restore="selectRestoreFile"
       @prepare-current-export="prepareCurrentBeautyExport"
-      @proceed="requestBeautyRestoreConfirmation"
+      @proceed-restore="requestBeautyRestoreConfirmation"
       @return-home="returnBeautyHome"
     />
     <BeautyModuleNavigation :active-tab="activeTab" @select="selectTab" />
@@ -235,12 +250,6 @@ onShow(refreshActiveTab);
 .beauty-page {
   min-height: 100vh;
   background: #fbf5f7;
-}
-
-/* 模块数据页要为固定的模块内导航预留滚动尾部，避免最后一个恢复按钮被遮挡。 */
-.beauty-page :deep(.backup-panel) {
-  /* 让最后一个危险操作能滚动到固定导航上方，避开真机底部手势区。 */
-  padding-bottom: calc(320rpx + env(safe-area-inset-bottom));
 }
 
 </style>

@@ -23,6 +23,16 @@ export interface BeautyHomeOverview {
   pendingCount: number;
   /** 全部逾期、今天剩余及未来三个本地自然日的预约。 */
   reminders: AppointmentReminder[];
+  /** 当前自然月内按预约项目快照归集的服务贡献；多项目预约按标准价占比分摊实际成交额。 */
+  serviceContributions: readonly BeautyServiceContribution[];
+  /** 相较上一个本地自然月的成交金额变化百分比；上月无成交时为空。 */
+  monthlyTransactionChangePercent?: number;
+}
+
+export interface BeautyServiceContribution {
+  name: string;
+  completedCount: number;
+  transactionAmountCents: number;
 }
 
 export interface CustomerBusinessSummary {
@@ -53,6 +63,23 @@ function sumCompletedAmounts(
   return total;
 }
 
+function deriveServiceContributions(appointments: readonly CompletedAppointmentV1[]): BeautyServiceContribution[] {
+  const contributions = new Map<string, BeautyServiceContribution>();
+  for (const appointment of appointments) {
+    const totalStandard = appointment.projectSnapshots.reduce((sum, project) => sum + project.standardPriceCents, 0);
+    for (const project of appointment.projectSnapshots) {
+      const amount = totalStandard > 0
+        ? Math.round((appointment.transactionAmountCents * project.standardPriceCents) / totalStandard)
+        : 0;
+      const current = contributions.get(project.name) ?? { name: project.name, completedCount: 0, transactionAmountCents: 0 };
+      current.completedCount += 1;
+      current.transactionAmountCents += amount;
+      contributions.set(project.name, current);
+    }
+  }
+  return [...contributions.values()].sort((left, right) => right.transactionAmountCents - left.transactionAmountCents || right.completedCount - left.completedCount || left.name.localeCompare(right.name));
+}
+
 /**
  * 从预约源记录派生美容首页数据。边界使用设备本地自然日和自然月，
  * “未来三天”指明天起连续三个自然日，不包含今天。
@@ -69,6 +96,7 @@ export function deriveBeautyHomeOverview(
   const tomorrowStart = addLocalDays(now, 1).getTime();
   const afterNextThreeDays = addLocalDays(now, 4).getTime();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
   const pending = appointments.filter(
     (appointment): appointment is PendingAppointmentV1 =>
@@ -83,6 +111,17 @@ export function deriveBeautyHomeOverview(
       return completedAt >= monthStart && completedAt < nextMonthStart;
     },
   );
+  const completedPreviousMonth = appointments.filter(
+    (appointment): appointment is CompletedAppointmentV1 => {
+      if (appointment.status !== "completed") {
+        return false;
+      }
+      const completedAt = new Date(appointment.completedAt).getTime();
+      return completedAt >= previousMonthStart && completedAt < monthStart;
+    },
+  );
+  const currentAmount = sumCompletedAmounts(completedThisMonth);
+  const previousAmount = sumCompletedAmounts(completedPreviousMonth);
   const reminders = pending
     .map((appointment): AppointmentReminder | undefined => {
       const scheduledAt = new Date(appointment.scheduledAt).getTime();
@@ -111,9 +150,14 @@ export function deriveBeautyHomeOverview(
     });
   return {
     monthlyCompletedCount: completedThisMonth.length,
-    monthlyTransactionAmountCents: sumCompletedAmounts(completedThisMonth),
+    monthlyTransactionAmountCents: currentAmount,
     pendingCount: pending.length,
     reminders,
+    serviceContributions: deriveServiceContributions(completedThisMonth),
+    monthlyTransactionChangePercent:
+      previousAmount > 0
+        ? Math.round(((currentAmount - previousAmount) / previousAmount) * 100)
+        : undefined,
   };
 }
 

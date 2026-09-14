@@ -97,6 +97,14 @@ describe("轻量经营统计与预约提醒", () => {
 
     expect(overview.monthlyCompletedCount).toBe(2);
     expect(overview.monthlyTransactionAmountCents).toBe(17250);
+    expect(overview.monthlyTransactionChangePercent).toBe(245);
+    expect(overview.serviceContributions).toEqual([
+      {
+        name: "补水护理",
+        completedCount: 2,
+        transactionAmountCents: 17250,
+      },
+    ]);
   });
 
   it("顾客累计只汇总该顾客仍存在的已完成预约", () => {

@@ -10,13 +10,19 @@ describe("restore confirmation component event", () => {
     const section = readComponent("./BackupRestoreSection.vue");
     const panel = readComponent("./BackupRestorePanel.vue");
     const beautyPage = readComponent("../../../pages/beauty/index.vue");
+    const beautyDataPanel = readComponent(
+      "../../beauty-module/components/BeautyDataPanel.vue",
+    );
     const systemPage = readComponent("../../../pages/backup-restore/index.vue");
 
     expect(section).toContain('(event: "proceed"): void;');
     expect(section).toContain('@click="emit(\'proceed\')"');
     expect(panel).toContain('(event: "proceed"): void;');
     expect(panel).toContain('@proceed="emit(\'proceed\')"');
-    expect(beautyPage).toContain('@proceed="requestBeautyRestoreConfirmation"');
+    expect(beautyDataPanel).toContain('@proceed="emit(\'proceedRestore\')"');
+    expect(beautyPage).toContain(
+      '@proceed-restore="requestBeautyRestoreConfirmation"',
+    );
     expect(systemPage).toContain('@proceed="requestRestoreConfirmation"');
     expect(section).not.toContain('request-restore');
     expect(panel).not.toContain('confirm-restore');

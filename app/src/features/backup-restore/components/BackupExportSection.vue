@@ -29,7 +29,7 @@ const canPrepare = computed(() =>
     <view class="data-section__heading">
       <view>
         <text class="data-section__eyebrow">导出</text>
-        <text class="data-section__title">备份{{ props.scopeLabel }}</text>
+        <text class="data-section__title">生成备份文件</text>
       </view>
       <view v-if="props.showLastSystemExport" class="data-section__status">
         <text class="data-section__status-label">最近完整系统导出</text>
@@ -128,8 +128,8 @@ const canPrepare = computed(() =>
   padding: 32rpx;
   border: 2rpx solid #e1e5ec;
   border-radius: 22rpx;
-  background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(28, 42, 68, 0.05);
+  background: #f6effc;
+  box-shadow: none;
 }
 
 .data-section__heading {
@@ -150,15 +150,11 @@ const canPrepare = computed(() =>
   display: block;
 }
 
-.data-section__eyebrow {
-  color: #31549e;
-  font-size: 22rpx;
-  font-weight: 600;
-}
+.data-section__eyebrow { display: none; }
 
 .data-section__title {
-  margin-top: 8rpx;
-  color: #172033;
+  margin-top: 0;
+  color: #30253b;
   font-size: 31rpx;
   font-weight: 700;
 }
@@ -235,8 +231,8 @@ const canPrepare = computed(() =>
   margin-top: 24rpx;
   padding: 18rpx 20rpx;
   border-radius: 14rpx;
-  background: #f2f4f7;
-  color: #606a7c;
+  background: rgba(255, 255, 255, 0.68);
+  color: #756b80;
   font-size: 23rpx;
   line-height: 1.55;
 }
@@ -264,17 +260,17 @@ const canPrepare = computed(() =>
   align-items: center;
   justify-content: center;
   margin-top: 22rpx;
-  border: 2rpx solid #3156a9;
-  border-radius: 16rpx;
-  background: #ffffff;
-  color: #294da8;
+  border: 2rpx solid transparent;
+  border-radius: 999rpx;
+  background: #7954a0;
+  color: #ffffff;
   font-size: 27rpx;
   font-weight: 600;
 }
 
 .data-section__button--primary {
   border-color: transparent;
-  background: #3159b5;
+  background: #7954a0;
   color: #ffffff;
 }
 

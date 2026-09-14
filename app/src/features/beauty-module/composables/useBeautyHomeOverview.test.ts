@@ -52,4 +52,23 @@ describe("美容首页经营数据编排", () => {
     expect(flow.errorMessage.value).toContain("读取失败");
     expect(flow.loading.value).toBe(false);
   });
+
+  it("报表月份可向前切换并且不能超过当前月", async () => {
+    const flow = useBeautyHomeOverview(
+      { readSnapshot: async () => emptyData },
+      () => new Date(2026, 7, 8, 12, 0, 0, 0),
+    );
+    await flow.refresh();
+
+    expect(flow.reportMonth.value).toEqual(new Date(2026, 7, 1));
+    expect(flow.canSelectNextReportMonth.value).toBe(false);
+
+    flow.selectPreviousReportMonth();
+    expect(flow.reportMonth.value).toEqual(new Date(2026, 6, 1));
+    expect(flow.canSelectNextReportMonth.value).toBe(true);
+
+    flow.selectNextReportMonth();
+    flow.selectNextReportMonth();
+    expect(flow.reportMonth.value).toEqual(new Date(2026, 7, 1));
+  });
 });
