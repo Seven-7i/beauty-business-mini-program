@@ -17,6 +17,8 @@ const emit = defineEmits<{
   (event: "open-inventory"): void;
   (event: "open-projects"): void;
   (event: "open-customers"): void;
+  /** 将首页近期预约标识上送给路由组合层打开详情。 */
+  (event: "open-appointment", appointmentId: string): void;
   (event: "open-appointments"): void;
   (event: "retry"): void;
 }>();
@@ -42,6 +44,7 @@ const emit = defineEmits<{
       :customers="customers"
       :loading="loading"
       :error-message="errorMessage"
+      @open-appointment="emit('open-appointment', $event)"
       @open-appointments="emit('open-appointments')"
       @retry="emit('retry')"
     />

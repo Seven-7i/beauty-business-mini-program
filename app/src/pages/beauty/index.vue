@@ -46,6 +46,15 @@ const {
 } = useBeautyHomeOverview(repository);
 const appointmentCalendar = useAppointmentCalendar(repository);
 const activeTab = shallowRef<BeautyModuleTab>("home");
+const navigationBarStyles: Record<
+  BeautyModuleTab,
+  { title: string; backgroundColor: string }
+> = {
+  home: { title: "美容管理", backgroundColor: "#FFF8FA" },
+  schedule: { title: "美容 · 日程", backgroundColor: "#FBF5F7" },
+  reports: { title: "美容 · 报表", backgroundColor: "#FFF2F6" },
+  data: { title: "美容 · 数据", backgroundColor: "#FBF5F7" },
+};
 const backupService = createBackupRestoreService({
   repository,
   files,
@@ -89,6 +98,13 @@ function openAppointments(): void {
   uni.navigateTo({ url: "/pages/appointment/index" });
 }
 
+/** 从美容首页打开指定近期预约的独立详情页。 */
+function openAppointment(appointmentId: string): void {
+  uni.navigateTo({
+    url: `/pages/appointment-detail/index?appointmentId=${encodeURIComponent(appointmentId)}`,
+  });
+}
+
 function refreshActiveTab(): void {
   if (activeTab.value === "schedule") {
     void appointmentCalendar.refresh();
@@ -97,15 +113,26 @@ function refreshActiveTab(): void {
   }
 }
 
+/** 将模块页签标题及其顶部画布色同步到微信原生导航栏。 */
+function syncNavigationBar(tab: BeautyModuleTab): void {
+  const style = navigationBarStyles[tab];
+  uni.setNavigationBarTitle({ title: style.title });
+  uni.setNavigationBarColor({
+    frontColor: "#000000",
+    backgroundColor: style.backgroundColor,
+  });
+}
+
+/** 切换模块页签，并刷新该页签依赖的本机业务数据。 */
 function selectTab(tab: BeautyModuleTab): void {
   activeTab.value = tab;
-  const titles: Record<BeautyModuleTab, string> = {
-    home: "美容管理",
-    schedule: "美容 · 日程",
-    reports: "美容 · 报表",
-    data: "美容 · 数据",
-  };
-  uni.setNavigationBarTitle({ title: titles[tab] });
+  syncNavigationBar(tab);
+  refreshActiveTab();
+}
+
+/** 页面重新显示时恢复当前页签的标题、底色和数据。 */
+function handlePageShow(): void {
+  syncNavigationBar(activeTab.value);
   refreshActiveTab();
 }
 
@@ -179,7 +206,7 @@ function returnBeautyHome(): void {
 }
 
 onMounted(initializeBackup);
-onShow(refreshActiveTab);
+onShow(handlePageShow);
 </script>
 
 <template>
@@ -193,6 +220,7 @@ onShow(refreshActiveTab);
       @open-inventory="openInventory"
       @open-projects="openProjects"
       @open-customers="openCustomers"
+      @open-appointment="openAppointment"
       @open-appointments="openAppointments"
       @retry="refresh"
     />

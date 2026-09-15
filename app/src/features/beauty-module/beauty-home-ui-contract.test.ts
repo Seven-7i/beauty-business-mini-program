@@ -6,6 +6,20 @@ function readSource(path: string): string {
 }
 
 describe("美容模块首页定稿契约", () => {
+  it("模块页签切换时同步原生标题栏标题与画布底色", () => {
+    const pages = readSource("../../pages.json");
+    const page = readSource("../../pages/beauty/index.vue");
+
+    expect(pages).toMatch(
+      /"path": "pages\/beauty\/index"[\s\S]*?"navigationBarBackgroundColor": "#FFF8FA"/,
+    );
+    expect(page).toContain('home: { title: "美容管理", backgroundColor: "#FFF8FA" }');
+    expect(page).toContain('schedule: { title: "美容 · 日程", backgroundColor: "#FBF5F7" }');
+    expect(page).toContain('reports: { title: "美容 · 报表", backgroundColor: "#FFF2F6" }');
+    expect(page).toContain('data: { title: "美容 · 数据", backgroundColor: "#FBF5F7" }');
+    expect(page).toContain("uni.setNavigationBarColor");
+  });
+
   it("按经营概览、近期预约和业务入口组合首页", () => {
     const home = readSource("./components/BeautyModuleHome.vue");
     const overview = readSource("./components/BeautyHomeOverview.vue");
@@ -23,12 +37,26 @@ describe("美容模块首页定稿契约", () => {
     expect(overview).toContain('value: unavailable ? "—"');
     expect(reminders).toContain("近期预约");
     expect(reminders).toContain("查看全部");
+    expect(reminders).toContain('hover-class="reminder-row--pressed"');
+    expect(reminders).toMatch(/\.reminder-row--pressed\s*\{/);
+    expect(reminders).toContain('emit("open-appointment", row.id)');
+    expect(home).toContain('@open-appointment="emit(\'open-appointment\', $event)"');
     expect(reminders).toMatch(/\.reminders__all\s*\{[^}]*min-height:\s*88rpx/s);
     expect(entries).toContain("预约执行");
     expect(entries).toContain("顾客管理");
     expect(entries).toContain("服务项目");
     expect(entries).toContain("物品库存");
 
+  });
+
+  it("单条近期预约进入详情，查看全部进入预约执行列表", () => {
+    const page = readSource("../../pages/beauty/index.vue");
+
+    expect(page).toContain(
+      "`/pages/appointment-detail/index?appointmentId=${encodeURIComponent(appointmentId)}`",
+    );
+    expect(page).toContain('@open-appointment="openAppointment"');
+    expect(page).toContain('@open-appointments="openAppointments"');
   });
 
   it("业务入口和模块导航只调用语义化本地图标", () => {

@@ -21,6 +21,39 @@ const emptyData: ApplicationData = {
 };
 
 describe("阶段 4 界面韧性契约", () => {
+  it("所有原生标题栏都延续所属页面的画布底色", () => {
+    const pages = readSource("../pages.json");
+    const routeBackgrounds = [
+      ["pages/index/index", "#F8F9FB"],
+      ["pages/backup-restore/index", "#F3F1EC"],
+      ["pages/module-management/index", "#F3F1EC"],
+      ["pages/inventory/index", "#FFF8FA"],
+      ["pages/inventory-create/index", "#FFF8FA"],
+      ["pages/inventory-detail/index", "#FFF8FA"],
+      ["pages/inventory-adjustment/index", "#FFF8FA"],
+      ["pages/inventory-profile-edit/index", "#FFF8FA"],
+      ["pages/beauty/index", "#FFF8FA"],
+      ["pages/beauty-project/index", "#FFF8FA"],
+      ["pages/beauty-project-create/index", "#FFF8FA"],
+      ["pages/beauty-project-detail/index", "#FFF8FA"],
+      ["pages/customer/index", "#FBF5F7"],
+      ["pages/customer-create/index", "#FBF5F7"],
+      ["pages/customer-detail/index", "#FBF5F7"],
+      ["pages/appointment/index", "#FBF8FB"],
+      ["pages/appointment-create/index", "#FBF8FB"],
+      ["pages/appointment-detail/index", "#FBF8FB"],
+      ["pages/history-cleanup/index", "#F8F9FB"],
+    ] as const;
+
+    for (const [path, background] of routeBackgrounds) {
+      expect(pages).toMatch(
+        new RegExp(
+          `"path": "${path}"[\\s\\S]*?"navigationBarBackgroundColor": "${background}"`,
+        ),
+      );
+    }
+  });
+
   it("区分可重试的读取失败与不可盲目重试的业务操作失败", async () => {
     const service = {
       readData: vi.fn().mockRejectedValueOnce(new Error("read failed")),
@@ -213,7 +246,9 @@ describe("阶段 4 界面韧性契约", () => {
     );
 
     expect(pages).toContain('"navigationBarTitleText": "顾客管理"');
-    expect(pages).toContain('"navigationBarBackgroundColor": "#FFF8FA"');
+    expect(pages).toMatch(
+      /"path": "pages\/customer\/index"[\s\S]*?"navigationBarBackgroundColor": "#FBF5F7"/,
+    );
     expect(pages).toContain('"path": "pages/customer-create/index"');
     expect(pages).toContain('"navigationBarTitleText": "新增顾客"');
     expect(pages).toContain('"path": "pages/customer-detail/index"');

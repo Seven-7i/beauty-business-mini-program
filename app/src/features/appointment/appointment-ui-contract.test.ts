@@ -86,6 +86,10 @@ describe("预约执行定稿契约", () => {
 
     expect(detail).toContain('class="detail-row__label"');
     expect(detail).toContain('class="detail-row__value"');
+    expect(detail).toContain('class="detail-hero__phone"');
+    expect(detail).toContain('hover-class="detail-hero__phone--pressed"');
+    expect(detail).toContain("uni.makePhoneCall");
+    expect(detail).toContain('title: "未能打开拨号界面"');
     expect(detail).toContain(".detail-row__label { display: flex; width: 152rpx;");
     expect(detail).toContain(".detail-row__value { min-width: 0; flex: 1; color: #39333f; font-size: 27rpx;");
   });

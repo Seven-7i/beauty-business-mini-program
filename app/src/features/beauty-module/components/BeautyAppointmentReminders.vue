@@ -17,6 +17,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  /** 打开单条近期预约的详情。 */
+  (event: "open-appointment", appointmentId: string): void;
+  /** 打开完整预约执行列表。 */
   (event: "open-appointments"): void;
   (event: "retry"): void;
 }>();
@@ -78,8 +81,11 @@ const reminderRows = computed(() =>
           v-for="row in reminderRows"
           :key="row.id"
           class="reminder-row"
+          hover-class="reminder-row--pressed"
+          :hover-start-time="0"
+          :hover-stay-time="100"
           :aria-label="`${row.badge}，${row.customer}，${row.meta}`"
-          @click="emit('open-appointments')"
+          @click='emit("open-appointment", row.id)'
         >
           <text
             class="reminder-row__badge"
@@ -165,6 +171,14 @@ const reminderRows = computed(() =>
   background: #ffffff;
   box-shadow: 0 9rpx 24rpx rgba(125, 91, 112, 0.06);
   text-align: left;
+  transition: transform 100ms ease, background-color 100ms ease, border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.reminder-row--pressed {
+  border-color: #e4d2dc;
+  background: #f8eef3;
+  box-shadow: inset 0 2rpx 8rpx rgba(111, 75, 97, 0.08);
+  transform: translateY(2rpx) scale(0.985);
 }
 
 .reminder-row__badge {

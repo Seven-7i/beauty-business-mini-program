@@ -246,6 +246,16 @@ function confirmDelete(): void {
   });
 }
 
+/** 由预约详情中的顾客手机号唤起系统拨号界面；失败时保留页面并提示。 */
+function callCustomer(phoneNumber: string): void {
+  uni.makePhoneCall({
+    phoneNumber,
+    fail: () => {
+      uni.showToast({ title: "未能打开拨号界面", icon: "none" });
+    },
+  });
+}
+
 onMounted(refresh);
 defineExpose({ refresh });
 </script>
@@ -268,7 +278,17 @@ defineExpose({ refresh });
         <view class="detail-hero__heading">
           <view>
             <text class="detail-hero__customer">{{ customer?.nickname ?? "顾客资料不可用" }}</text>
-            <text class="detail-hero__phone">{{ customer?.phone ?? "" }}</text>
+            <button
+              v-if="customer?.phone"
+              class="detail-hero__phone"
+              :aria-label="`拨打 ${customer.phone}`"
+              hover-class="detail-hero__phone--pressed"
+              @click="callCustomer(customer.phone)"
+            >
+              <u-icon name="phone" color="#4d33df" :size="14" />
+              <text>{{ customer.phone }}</text>
+              <text class="detail-hero__phone-action">拨打</text>
+            </button>
           </view>
           <view class="detail-hero__badges">
             <text v-if="appointment.recordOrigin === 'backfilled'" class="detail-hero__origin">后补</text>
@@ -405,7 +425,10 @@ defineExpose({ refresh });
 .detail-hero__heading, .detail-card__heading, .usage-row { justify-content: space-between; gap: 18rpx; }
 .detail-hero__heading > view:first-child { display: flex; min-width: 0; flex-direction: column; }
 .detail-hero__customer { color: #16131a; font-size: 38rpx; font-weight: 700; }
-.detail-hero__phone { margin-top: 6rpx; color: #635d69; font-size: 24rpx; }
+.detail-hero__phone { display: flex; min-height: 54rpx; align-items: center; align-self: flex-start; gap: 10rpx; margin: 10rpx 0 0; padding: 0 18rpx; border: 1rpx solid #e3d8f5; border-radius: 999rpx; background: #f3eefb; color: #4d33df; font-size: 24rpx; line-height: 1; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; }
+.detail-hero__phone::after { border: 0; }
+.detail-hero__phone-action { padding-left: 10rpx; border-left: 1rpx solid #d7caec; font-size: 22rpx; font-weight: 600; }
+.detail-hero__phone--pressed { border-color: #c8b5e8; background: #e8ddf7; transform: scale(0.98); }
 .detail-hero__badges { gap: 10rpx; }
 .detail-hero__origin, .detail-hero__status { padding: 10rpx 14rpx; border-radius: 10rpx; font-size: 22rpx; }
 .detail-hero__origin { background: #eee8ff; color: #4d32da; }
