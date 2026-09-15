@@ -150,6 +150,7 @@ watch(
           :class="{ 'project-multi-select__button--disabled': disabled }"
           role="button"
           :aria-disabled="disabled"
+          :hover-class="disabled ? 'none' : 'app-pressable'"
           @click="cancel"
         >
           取消
@@ -159,6 +160,7 @@ watch(
           :class="{ 'project-multi-select__button--disabled': disabled }"
           role="button"
           :aria-disabled="disabled"
+          :hover-class="disabled ? 'none' : 'app-pressable'"
           @click="confirm"
         >
           确认选择（{{ draftProjectIds.length }}）

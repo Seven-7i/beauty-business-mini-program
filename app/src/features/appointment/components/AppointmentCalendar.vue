@@ -125,7 +125,7 @@ function endCalendarGesture(event: TouchEvent): void {
           aria-label="日期操作"
           :aria-hidden="isSelectedToday"
         >
-          <view class="calendar-card__today" role="button" :tabindex="isSelectedToday ? -1 : 0" @click="$emit('go-today')">回到今天</view>
+          <view class="calendar-card__today" role="button" :tabindex="isSelectedToday ? -1 : 0" hover-class="app-pressable" @click="$emit('go-today')">回到今天</view>
         </view>
       </view>
       <view class="calendar-grid calendar-grid--week">
@@ -142,6 +142,7 @@ function endCalendarGesture(event: TouchEvent): void {
               :class="{ 'calendar-day--selected': day.dateKey === selectedDateKey }"
               role="button"
               tabindex="0"
+              hover-class="app-pressable"
               @click="$emit('select-date', day.dateKey)"
             >
               <text class="calendar-day__number">{{ day.dayOfMonth }}</text>
@@ -165,6 +166,7 @@ function endCalendarGesture(event: TouchEvent): void {
               :class="{ 'calendar-day--selected': day.dateKey === selectedDateKey }"
               role="button"
               tabindex="0"
+              hover-class="app-pressable"
               @click="$emit('select-date', day.dateKey)"
             >
               <text class="calendar-day__number">{{ day.dayOfMonth }}</text>
@@ -187,7 +189,7 @@ function endCalendarGesture(event: TouchEvent): void {
           <text class="calendar-panel__day-title">{{ formatSelectedDate(selectedDateKey) }}</text>
           <text class="calendar-panel__day-count">{{ selectedAppointments.length }}条预约</text>
         </view>
-        <view class="calendar-panel__manage" role="button" tabindex="0" @click="$emit('open-appointments')">管理预约</view>
+        <view class="calendar-panel__manage" role="button" tabindex="0" hover-class="app-pressable" @click="$emit('open-appointments')">管理预约</view>
       </view>
       <view v-if="loading" class="calendar-panel__empty">正在读取本机预约</view>
       <RecoverableErrorNotice
@@ -205,6 +207,7 @@ function endCalendarGesture(event: TouchEvent): void {
         class="calendar-appointment"
         role="button"
         tabindex="0"
+        hover-class="app-pressable"
         @click="$emit('open-appointments')"
       >
         <text class="calendar-appointment__time">{{ formatTime(appointment.scheduledAt) }}</text>

@@ -83,6 +83,7 @@ function toggleAction(action: Exclude<BeautyDataAction, undefined>): void {
           role="button"
           tabindex="0"
           :aria-expanded="activeAction === 'export'"
+          hover-class="app-pressable"
           @click="toggleAction('export')"
         >
           <view class="data-action__copy">
@@ -126,6 +127,7 @@ function toggleAction(action: Exclude<BeautyDataAction, undefined>): void {
           role="button"
           tabindex="0"
           :aria-expanded="activeAction === 'restore'"
+          hover-class="app-pressable"
           @click="toggleAction('restore')"
         >
           <view class="data-action__copy">

@@ -179,9 +179,27 @@ button {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: opacity 100ms ease, transform 100ms ease;
 }
 
 button::after {
   border: none;
+}
+
+/* 全局按钮统一提供即时按压反馈；禁用按钮保持静止，避免误导用户。 */
+button:active {
+  opacity: 0.76;
+  transform: scale(0.98);
+}
+
+button[disabled]:active {
+  opacity: 0.5;
+  transform: none;
+}
+
+/* 非 button 的语义操作区通过 hover-class 复用此反馈。 */
+.app-pressable {
+  opacity: 0.76;
+  transform: scale(0.98);
 }
 </style>

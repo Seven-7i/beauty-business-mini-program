@@ -82,6 +82,7 @@ function cardLabel(appointment: DeepReadonly<AppointmentV1>): string {
       class="appointment-card"
       role="button"
       tabindex="0"
+      hover-class="app-pressable"
       @click="emit('open-detail', appointment)"
     >
       <view class="appointment-card__top">
