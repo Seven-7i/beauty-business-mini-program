@@ -38,7 +38,7 @@ function createModuleAuthorization(
 }
 
 describe("应用启动流程", () => {
-  it("先处理中断恢复，再读取模块授权进入工作台", async () => {
+  it("先处理中断恢复，再返回唯一已解锁模块作为直接进入目标", async () => {
     stubUni();
     const calls: string[] = [];
     const flow = useLaunchFlow({
@@ -54,10 +54,11 @@ describe("应用启动流程", () => {
       }),
     });
 
-    await flow.initialize();
+    const initialModule = await flow.initialize();
 
     expect(calls).toEqual(["recover", "authorization"]);
     expect(flow.pageState.value).toBe("workbench");
+    expect(initialModule).toBe("beauty");
   });
 
   it("发现未提交数据写入时回滚原数据并向用户报告", async () => {
@@ -71,10 +72,11 @@ describe("应用启动流程", () => {
       moduleAuthorization: createModuleAuthorization(),
     });
 
-    await flow.initialize();
+    const initialModule = await flow.initialize();
 
     expect(ui.toasts).toContain("上次数据写入未完成，已恢复原数据");
     expect(flow.pageState.value).toBe("workbench");
+    expect(initialModule).toBe("beauty");
   });
 
   it("中断恢复失败时进入只读保护，不继续读取授权", async () => {
@@ -98,6 +100,23 @@ describe("应用启动流程", () => {
     expect(flow.pageState.value).toBe("data-error");
     expect(flow.errorMessage.value).toContain("避免覆盖原数据");
     expect(ui.titles.at(-1)).toBe("数据保护");
+  });
+
+  it("未解锁模块时停留激活页且不返回直接进入目标", async () => {
+    stubUni();
+    const flow = useLaunchFlow({
+      applicationData: {
+        async recoverInterruptedReplace() {
+          return "none";
+        },
+      },
+      moduleAuthorization: createModuleAuthorization(async () => []),
+    });
+
+    const initialModule = await flow.initialize();
+
+    expect(flow.pageState.value).toBe("locked");
+    expect(initialModule).toBeUndefined();
   });
 
   it("激活页和工作台共用产品备份恢复入口", () => {

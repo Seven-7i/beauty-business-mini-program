@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, shallowRef } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
+import type { BusinessModuleId } from "@/domain/business-module";
 import DataProtectionErrorState from "@/features/launch/components/DataProtectionErrorState.vue";
 import ModuleActivationForm from "@/features/module-activation/components/ModuleActivationForm.vue";
 import ModuleUnlockSuccess from "@/features/module-activation/components/ModuleUnlockSuccess.vue";
@@ -75,15 +76,19 @@ const {
 } = useMyCenter({ service: myCenterService });
 
 async function initializePage(): Promise<void> {
-  await initialize();
+  const initialModule = await initialize();
   if (pageState.value === "workbench") {
+    if (initialModule) {
+      await openModule(initialModule);
+    }
     await checkProtectionReminders();
   }
 }
 
-/** 首次激活后的“继续”不会触发页面 onShow，因此在状态切换后显式读取工作台数据。 */
+/** 首次激活后直接进入唯一模块，并继续执行本次启动的数据保护提醒。 */
 async function enterAuthorizedWorkbench(): Promise<void> {
   enterWorkbench();
+  await openModule("beauty");
   await checkProtectionReminders();
 }
 
@@ -142,8 +147,26 @@ function showUsageGuide(): void {
   });
 }
 
-function openBeautyModule(): void {
-  uni.navigateTo({ url: "/pages/beauty/index" });
+/**
+ * 从全局工作台打开业务模块；当前仅支持美容模块。
+ * 使用 navigateTo 保留全局工作台为返回层，确保“我的”等系统能力仍可访问。
+ */
+function openModule(moduleId: BusinessModuleId): Promise<void> {
+  const moduleRoutes: Record<BusinessModuleId, string> = {
+    beauty: "/pages/beauty/index",
+  };
+  return new Promise((resolve) => {
+    uni.navigateTo({
+      url: moduleRoutes[moduleId],
+      success() {
+        resolve();
+      },
+      fail() {
+        uni.showToast({ title: "模块打开失败，请稍后重试", icon: "none" });
+        resolve();
+      },
+    });
+  });
 }
 
 async function requestHistoryCleanup(): Promise<void> {
@@ -205,7 +228,7 @@ onShow(checkWorkbenchReminder);
     <DataProtectionErrorState
       v-else-if="pageState === 'data-error'"
       :message="errorMessage"
-      @retry="initialize"
+      @retry="initializePage"
     />
 
     <ModuleUnlockSuccess
@@ -216,7 +239,7 @@ onShow(checkWorkbenchReminder);
     <template v-else>
       <BeautyWorkbench
         v-if="activeTab === 'workbench'"
-        @open-module="openBeautyModule"
+        @open-module="openModule('beauty')"
       />
       <MyCenter
         v-else

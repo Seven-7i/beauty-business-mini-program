@@ -1,4 +1,5 @@
 import { readonly, shallowRef } from "vue";
+import type { BusinessModuleId } from "@/domain/business-module";
 import type { ApplicationDataRepository } from "@/repositories/application-data-repository";
 import type { ModuleAuthorizationRepository } from "@/repositories/module-authorization-repository";
 import { unlockModule } from "@/services/module-authorization";
@@ -31,13 +32,17 @@ export function useLaunchFlow(options: UseLaunchFlowOptions) {
     uni.setNavigationBarTitle({ title });
   }
 
-  async function initialize(): Promise<void> {
+  /**
+   * 完成本机数据恢复与授权读取，并返回单模块场景的直接进入目标。
+   * 根页面仍先进入工作台状态，作为模块页返回后的全局导航承载层。
+   */
+  async function initialize(): Promise<BusinessModuleId | undefined> {
     pageState.value = "loading";
     errorMessage.value = "";
     try {
       const recoveryResult = await ensureApplicationDataRecovered(applicationData);
       const unlockedModules = await moduleAuthorization.getUnlockedModules();
-      pageState.value = unlockedModules.length === 1 ? "workbench" : "locked";
+      pageState.value = unlockedModules.length > 0 ? "workbench" : "locked";
       setPageTitle(pageState.value === "workbench" ? "工作台" : "欢迎使用");
       if (recoveryResult === "rolled-back" || recoveryResult === "rolled-back-cleanup") {
         uni.showToast({
@@ -52,11 +57,13 @@ export function useLaunchFlow(options: UseLaunchFlowOptions) {
           duration: 3000,
         });
       }
+      return unlockedModules.length === 1 ? unlockedModules[0] : undefined;
     } catch {
       pageState.value = "data-error";
       errorMessage.value =
         "无法安全读取或恢复本机数据。为避免覆盖原数据，应用已停止进入工作台。";
       setPageTitle("数据保护");
+      return undefined;
     }
   }
 
