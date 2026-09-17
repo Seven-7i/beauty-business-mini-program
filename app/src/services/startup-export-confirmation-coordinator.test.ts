@@ -47,6 +47,44 @@ describe("启动导出确认协调器", () => {
     expect(result.handledPending).toBe(true);
   });
 
+  it("连续失败达到上限后暂停，只有人工确认后才继续尝试", async () => {
+    let attempts = 0;
+    let manualRetries = 0;
+    const waits: number[] = [];
+
+    const result = await retryStartupExportConfirmation({
+      async attempt() {
+        attempts += 1;
+        if (attempts <= 3) throw new Error("persistent storage failure");
+        return { handledPending: false };
+      },
+      async waitBeforeRetry(failedAttemptCount) {
+        waits.push(failedAttemptCount);
+      },
+      async waitForManualRetry() {
+        manualRetries += 1;
+      },
+      maxAutomaticAttempts: 3,
+    });
+
+    expect(waits).toEqual([1, 2]);
+    expect(manualRetries).toBe(1);
+    expect(attempts).toBe(4);
+    expect(result.handledPending).toBe(false);
+  });
+
+  it("没有人工恢复入口时达到上限会把持久错误交给调用方", async () => {
+    await expect(
+      retryStartupExportConfirmation({
+        async attempt() {
+          throw new Error("storage unavailable");
+        },
+        async waitBeforeRetry() {},
+        maxAutomaticAttempts: 2,
+      }),
+    ).rejects.toThrow("storage unavailable");
+  });
+
   it("新的冷启动使用新的协调器并重新检查 pending", async () => {
     let flowCount = 0;
     const createCoordinator = () =>

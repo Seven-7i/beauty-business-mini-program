@@ -52,6 +52,9 @@
     "mp-weixin" : {
         "appid" : "wx4275c797d569957a",
         "mergeVirtualHostAttributes" : true,
+		"optimization" : {
+			"subPackages" : true
+		},
         "setting" : {
             "urlCheck" : false
         },

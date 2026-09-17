@@ -10,7 +10,7 @@ describe("单模块启动路由契约", () => {
 
   it("模块跳转保留工作台返回层，并在失败时给出可恢复提示", () => {
     expect(indexPageSource).toContain("uni.navigateTo({");
-    expect(indexPageSource).toContain('beauty: "/pages/beauty/index"');
+    expect(indexPageSource).toContain('beauty: "/pages-beauty/beauty/index"');
     expect(indexPageSource).toContain("模块打开失败，请稍后重试");
   });
 });

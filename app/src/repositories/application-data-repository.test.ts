@@ -841,7 +841,7 @@ describe("应用完整数据仓储", () => {
   });
 
   it("回滚文件部分写入即失败时直接清理且不改变业务数据", async () => {
-    const { repository, storage, files } = createRepository();
+    const { repository, files } = createRepository();
     const previous = createData("old", "旧物品");
     await repository.replaceSnapshot(previous);
     files.failWriteAfterPersist = true;
@@ -855,7 +855,7 @@ describe("应用完整数据仓储", () => {
   });
 
   it("残缺孤儿文件首次清理失败时，下次启动无需解析即可继续清理", async () => {
-    const { repository, storage, files } = createRepository();
+    const { repository, files } = createRepository();
     files.contents = "{partial";
     files.failRemoveCount = 1;
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
+import { onLaunch, onShow } from "@dcloudio/uni-app";
 import { APP_VERSION } from "@/config/app";
 import {
   createUniStorageAdapter,
@@ -25,15 +25,31 @@ let startupExportConfirmationCoordinator: ReturnType<
   typeof createStartupExportConfirmationCoordinator
 > | undefined;
 
-function waitBeforeRetry(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 800));
+function waitBeforeRetry(failedAttemptCount: number): Promise<void> {
+  const delay = Math.min(800 * 2 ** (failedAttemptCount - 1), 6_400);
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+/** 连续自动恢复失败后暂停，只有用户明确点击才再次访问本机存储。 */
+function waitForManualRetry(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    uni.showModal({
+      title: "数据保护检查暂停",
+      content: "本机数据暂时无法读取。系统已停止自动重试，请检查存储状态后手动重试。",
+      showCancel: false,
+      confirmText: "重新检查",
+      confirmColor: "#9A565D",
+      success: () => resolve(),
+      fail: reject,
+    });
+  });
 }
 
 function showPendingExportConfirmation(
   service: ReturnType<typeof createPendingExportConfirmationService>,
   pending: PendingExportConfirmation,
 ): Promise<"completed" | "sent-committed"> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const scopeLabel = pending.scopeKind === "system" ? "完整系统备份" : "美容模块备份";
     function prompt(retrying = false): void {
       uni.showModal({
@@ -64,19 +80,14 @@ function showPendingExportConfirmation(
                 resolve("sent-committed");
                 return;
               }
-              // 门禁继续保持；同次启动重试，冷启动时 Storage 状态也仍然存在。
+              // 再次显示需要用户重新作出选择，不在后台轮询存储。
               uni.showToast({ title: "确认结果保存失败，请重试", icon: "none" });
-              await waitBeforeRetry();
               prompt(true);
             }
           })();
         },
         fail() {
-          void (async () => {
-            uni.showToast({ title: "提示打开失败，正在重试", icon: "none" });
-            await waitBeforeRetry();
-            prompt(true);
-          })();
+          reject(new Error("待确认导出提示打开失败"));
         },
       });
     }
@@ -95,10 +106,9 @@ async function handleStartupExportConfirmation(
           try {
             await service.confirmSent(pending);
             uni.showToast({ title: "已完成上次导出记录", icon: "success" });
-          } catch {
-            uni.showToast({ title: "正在重试完成上次导出记录", icon: "none" });
-            await waitBeforeRetry();
-            continue;
+          } catch (error) {
+            uni.showToast({ title: "上次导出记录完成失败", icon: "none" });
+            throw error;
           }
         } else {
           const result = await showPendingExportConfirmation(service, pending);
@@ -108,10 +118,10 @@ async function handleStartupExportConfirmation(
         }
       }
       return { handledPending: pending !== undefined };
-    } catch {
-      // 不释放门禁，同次启动持续重试；普通容量/七天提醒不会抢先弹出。
-      uni.showToast({ title: "上次导出状态读取失败，正在重试", icon: "none" });
-      await waitBeforeRetry();
+    } catch (error) {
+      // 交由外层有限退避；达到上限后暂停等待用户明确重试。
+      uni.showToast({ title: "上次导出状态读取失败", icon: "none" });
+      throw error;
     }
   }
 }
@@ -147,6 +157,7 @@ onLaunch(() => {
             return handleStartupExportConfirmation(exportConfirmations);
           },
           waitBeforeRetry,
+          waitForManualRetry,
         }),
     });
   setStartupExportConfirmationGate(
@@ -160,9 +171,6 @@ onShow(() => {
   cleanupExpiredGeneratedBackups();
 });
 
-onHide(() => {
-  console.log("App Hide");
-});
 </script>
 
 <style lang="scss">

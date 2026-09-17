@@ -255,7 +255,7 @@ const canPrepare = computed(() =>
 .data-section__button {
   display: flex;
   width: 100%;
-  min-height: 88rpx;
+  min-height: 76rpx;
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
@@ -275,7 +275,7 @@ const canPrepare = computed(() =>
 }
 
 .data-section__button--compact {
-  min-height: 76rpx;
+  min-height: 88rpx;
   margin-top: 0;
   font-size: 24rpx;
 }

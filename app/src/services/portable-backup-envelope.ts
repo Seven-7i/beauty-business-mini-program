@@ -1,7 +1,6 @@
 import type { BusinessModuleId } from "@/domain/business-module";
 import type { ApplicationData, IsoDateTimeString } from "@/domain/data-schema";
 import type {
-  BusinessModuleDataMap,
   SelectedBusinessModuleData,
 } from "@/domain/module-data";
 import { isIsoDateTimeString } from "@/utils/iso-date-time";

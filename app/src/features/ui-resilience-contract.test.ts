@@ -1,24 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import type { ApplicationData } from "@/domain/data-schema";
-import { useInventoryManagement } from "@/features/inventory/composables/useInventoryManagement";
+import { useInventoryManagement } from "@/pages-beauty/features/inventory/composables/useInventoryManagement";
 import type { InventoryManagementService } from "@/services/inventory-management-service";
 
 function readSource(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
 }
-
-const emptyData: ApplicationData = {
-  schemaVersion: 2,
-  settings: { schemaVersion: 1 },
-  unlockedModules: ["beauty"],
-  backupMetadata: { schemaVersion: 1 },
-  inventoryItems: [],
-  inventoryMovements: [],
-  projects: [],
-  customers: [],
-  appointments: [],
-};
 
 describe("阶段 4 界面韧性契约", () => {
   it("所有原生标题栏都延续所属页面的画布底色", () => {
@@ -27,22 +14,22 @@ describe("阶段 4 界面韧性契约", () => {
       ["pages/index/index", "#F8F9FB"],
       ["pages/backup-restore/index", "#F3F1EC"],
       ["pages/module-management/index", "#F3F1EC"],
-      ["pages/inventory/index", "#FFF8FA"],
-      ["pages/inventory-create/index", "#FFF8FA"],
-      ["pages/inventory-detail/index", "#FFF8FA"],
-      ["pages/inventory-adjustment/index", "#FFF8FA"],
-      ["pages/inventory-profile-edit/index", "#FFF8FA"],
-      ["pages/beauty/index", "#FFF8FA"],
-      ["pages/beauty-project/index", "#FFF8FA"],
-      ["pages/beauty-project-create/index", "#FFF8FA"],
-      ["pages/beauty-project-detail/index", "#FFF8FA"],
-      ["pages/customer/index", "#FBF5F7"],
-      ["pages/customer-create/index", "#FBF5F7"],
-      ["pages/customer-detail/index", "#FBF5F7"],
-      ["pages/appointment/index", "#FBF8FB"],
-      ["pages/appointment-create/index", "#FBF8FB"],
-      ["pages/appointment-detail/index", "#FBF8FB"],
-      ["pages/history-cleanup/index", "#F8F9FB"],
+      ["inventory/index", "#FFF8FA"],
+      ["inventory-create/index", "#FFF8FA"],
+      ["inventory-detail/index", "#FFF8FA"],
+      ["inventory-adjustment/index", "#FFF8FA"],
+      ["inventory-profile-edit/index", "#FFF8FA"],
+      ["beauty/index", "#FFF8FA"],
+      ["beauty-project/index", "#FFF8FA"],
+      ["beauty-project-create/index", "#FFF8FA"],
+      ["beauty-project-detail/index", "#FFF8FA"],
+      ["customer/index", "#FBF5F7"],
+      ["customer-create/index", "#FBF5F7"],
+      ["customer-detail/index", "#FBF5F7"],
+      ["appointment/index", "#FBF8FB"],
+      ["appointment-create/index", "#FBF8FB"],
+      ["appointment-detail/index", "#FBF8FB"],
+      ["history-cleanup/index", "#F8F9FB"],
     ] as const;
 
     for (const [path, background] of routeBackgrounds) {
@@ -76,12 +63,12 @@ describe("阶段 4 界面韧性契约", () => {
 
   it("核心数据容器把读取重试交给统一错误组件", () => {
     const containers = [
-      "./inventory/components/InventoryManagement.vue",
-      "./beauty-project/components/BeautyProjectManagement.vue",
-      "./customer/components/CustomerManagement.vue",
-      "./customer/components/CustomerDetailPage.vue",
-      "./appointment/components/AppointmentManagement.vue",
-      "./history-cleanup/components/HistoryCleanup.vue",
+      "../pages-beauty/features/inventory/components/InventoryManagement.vue",
+      "../pages-beauty/features/beauty-project/components/BeautyProjectManagement.vue",
+      "../pages-beauty/features/customer/components/CustomerManagement.vue",
+      "../pages-beauty/features/customer/components/CustomerDetailPage.vue",
+      "../pages-beauty/features/appointment/components/AppointmentManagement.vue",
+      "../pages-beauty/features/history-cleanup/components/HistoryCleanup.vue",
     ];
 
     for (const path of containers) {
@@ -92,17 +79,18 @@ describe("阶段 4 界面韧性契约", () => {
     }
   });
 
-  it("高风险动态卡片允许长文本换行且操作按钮保持最小触控高度", () => {
-    const inventory = readSource("./inventory/components/InventoryItemList.vue");
-    const projects = readSource("./beauty-project/components/BeautyProjectList.vue");
-    const customers = readSource("./customer/components/CustomerCard.vue");
-    const appointments = readSource("./appointment/components/AppointmentList.vue");
+  it("高风险动态卡片允许长文本换行且保持已确认的紧凑比例", () => {
+    const inventory = readSource("../pages-beauty/features/inventory/components/InventoryItemList.vue");
+    const projects = readSource("../pages-beauty/features/beauty-project/components/BeautyProjectList.vue");
+    const customers = readSource("../pages-beauty/features/customer/components/CustomerCard.vue");
+    const appointments = readSource("../pages-beauty/features/appointment/components/AppointmentList.vue");
 
     for (const source of [inventory, projects, customers, appointments]) {
       expect(source).toContain("overflow-wrap: anywhere");
-      expect(source).toMatch(/min-height:\s*68rpx/);
       expect(source).toContain("flex-wrap: wrap");
     }
+    expect(customers).toMatch(/\.customer-card\s*\{[^}]*min-height:\s*68rpx/s);
+    expect(appointments).toMatch(/\.appointment-card__complete\s*\{[^}]*height:\s*70rpx/s);
     expect(inventory).not.toContain(".item-card__name {\n  overflow: hidden");
   });
 
@@ -208,50 +196,50 @@ describe("阶段 4 界面韧性契约", () => {
   it("顾客管理与独立详情页实现已确认的列表和双 Tab 分层", () => {
     const pages = readSource("../pages.json");
     const management = readSource(
-      "./customer/components/CustomerManagement.vue",
+      "../pages-beauty/features/customer/components/CustomerManagement.vue",
     );
-    const list = readSource("./customer/components/CustomerList.vue");
-    const card = readSource("./customer/components/CustomerCard.vue");
-    const detail = readSource("./customer/components/CustomerDetail.vue");
+    const list = readSource("../pages-beauty/features/customer/components/CustomerList.vue");
+    const card = readSource("../pages-beauty/features/customer/components/CustomerCard.vue");
+    const detail = readSource("../pages-beauty/features/customer/components/CustomerDetail.vue");
     const detailPage = readSource(
-      "./customer/components/CustomerDetailPage.vue",
+      "../pages-beauty/features/customer/components/CustomerDetailPage.vue",
     );
     const detailProfile = readSource(
-      "./customer/components/CustomerDetailProfile.vue",
+      "../pages-beauty/features/customer/components/CustomerDetailProfile.vue",
     );
     const detailTabs = readSource(
-      "./customer/components/CustomerDetailTabs.vue",
+      "../pages-beauty/features/customer/components/CustomerDetailTabs.vue",
     );
     const profileDetails = readSource(
-      "./customer/components/CustomerProfileDetails.vue",
+      "../pages-beauty/features/customer/components/CustomerProfileDetails.vue",
     );
-    const form = readSource("./customer/components/CustomerForm.vue");
-    const editor = readSource("./customer/components/CustomerEditor.vue");
+    const form = readSource("../pages-beauty/features/customer/components/CustomerForm.vue");
+    const editor = readSource("../pages-beauty/features/customer/components/CustomerEditor.vue");
     const draftProtection = readSource(
-      "./customer/composables/useCustomerDraftProtection.ts",
+      "../pages-beauty/features/customer/composables/useCustomerDraftProtection.ts",
     );
-    const customerPage = readSource("../pages/customer/index.vue");
-    const customerCreatePage = readSource("../pages/customer-create/index.vue");
+    const customerPage = readSource("../pages-beauty/customer/index.vue");
+    const customerCreatePage = readSource("../pages-beauty/customer-create/index.vue");
     const customerDetailRoute = readSource(
-      "../pages/customer-detail/index.vue",
+      "../pages-beauty/customer-detail/index.vue",
     );
     const detailNavigation = readSource(
-      "./customer/customer-detail-navigation.ts",
+      "../pages-beauty/features/customer/customer-detail-navigation.ts",
     );
     const editorNavigation = readSource(
-      "./customer/customer-create-navigation.ts",
+      "../pages-beauty/features/customer/customer-create-navigation.ts",
     );
     const customerState = readSource(
-      "./customer/composables/useCustomerManagement.ts",
+      "../pages-beauty/features/customer/composables/useCustomerManagement.ts",
     );
 
     expect(pages).toContain('"navigationBarTitleText": "顾客管理"');
     expect(pages).toMatch(
-      /"path": "pages\/customer\/index"[\s\S]*?"navigationBarBackgroundColor": "#FBF5F7"/,
+      /"path": "customer\/index"[\s\S]*?"navigationBarBackgroundColor": "#FBF5F7"/,
     );
-    expect(pages).toContain('"path": "pages/customer-create/index"');
+    expect(pages).toContain('"path": "customer-create/index"');
     expect(pages).toContain('"navigationBarTitleText": "新增顾客"');
-    expect(pages).toContain('"path": "pages/customer-detail/index"');
+    expect(pages).toContain('"path": "customer-detail/index"');
     expect(pages).toContain('"navigationBarTitleText": "顾客详情"');
     expect(management).not.toContain("customer-management__intro");
     expect(management).not.toContain("screen ===");
@@ -261,7 +249,7 @@ describe("阶段 4 界面韧性契约", () => {
     expect(management).toContain("openCustomerEditor();");
     expect(management).toContain("openCustomerDetail(customer.id)");
     expect(detailNavigation).toContain(
-      "/pages/customer-detail/index?customerId=",
+      "/pages-beauty/customer-detail/index?customerId=",
     );
     expect(customerPage).toContain("onShow(refreshCustomerManagement)");
     expect(customerPage).toContain('ref="customerManagement"');
@@ -433,11 +421,9 @@ describe("阶段 4 界面韧性契约", () => {
     expect(authorization).toContain("第一版只允许增加模块，不提供移除入口");
     expect(authorization).toContain(':maxlength="6"');
     expect(codeInput).toContain("<up-code-input");
-    expect(codeInput).toContain(':disabled-keyboard="props.disabled"');
-    expect(codeInput).toContain(':hairline="false"');
+    expect(codeInput).toContain('mode="box"');
     expect(codeInput).toContain('size="74rpx"');
     expect(codeInput).toMatch(/\.module-code-input\s*\{[^}]*height:\s*80rpx/s);
-    expect(codeInput).not.toContain('class="module-code-input__native"');
     expect(viteConfig).toContain('process.env.UNI_PLATFORM === "mp-weixin"');
     expect(viteConfig).toContain('minify: isWeixinMiniProgram ? false : "esbuild"');
 
@@ -447,7 +433,7 @@ describe("阶段 4 界面韧性契约", () => {
     const app = readSource("../App.vue");
     const index = readSource("../pages/index/index.vue");
     const systemBackup = readSource("../pages/backup-restore/index.vue");
-    const beauty = readSource("../pages/beauty/index.vue");
+    const beauty = readSource("../pages-beauty/beauty/index.vue");
 
     expect(app).toContain("上次导出尚未确认");
     expect(app).toContain("setStartupExportConfirmationGate");

@@ -1,0 +1,283 @@
+<script setup lang="ts">
+import { onMounted, shallowRef } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { APP_VERSION } from "@/config/app";
+import { useBackupRestoreFlow } from "@/features/backup-restore/composables/useBackupRestoreFlow";
+import AppointmentCalendar from "@/pages-beauty/features/appointment/components/AppointmentCalendar.vue";
+import { useAppointmentCalendar } from "@/pages-beauty/features/appointment/composables/useAppointmentCalendar";
+import BeautyModuleHome from "@/pages-beauty/features/beauty-module/components/BeautyModuleHome.vue";
+import BeautyModuleNavigation from "@/pages-beauty/features/beauty-module/components/BeautyModuleNavigation.vue";
+import BeautyDataPanel from "@/pages-beauty/features/beauty-module/components/BeautyDataPanel.vue";
+import { useBeautyHomeOverview } from "@/pages-beauty/features/beauty-module/composables/useBeautyHomeOverview";
+import type { BeautyModuleTab } from "@/pages-beauty/features/beauty-module/types";
+import BeautyReports from "@/pages-beauty/features/statistics/components/BeautyReports.vue";
+import {
+  createUniStorageAdapter,
+  type UniStorageRuntime,
+} from "@/infrastructure/storage/uni-storage-adapter";
+import { createDefaultWechatBackupFileAdapter } from "@/infrastructure/wechat/backup-file-adapter";
+import { createApplicationDataRepository } from "@/repositories/application-data-repository";
+import { createBackupRestoreService } from "@/services/backup-restore-service";
+import { createPendingExportConfirmationService } from "@/services/pending-export-confirmation-service";
+
+// 页面作为组合根注入本机数据能力，首页组件只接收派生展示状态。
+const files = createDefaultWechatBackupFileAdapter();
+const storage = createUniStorageAdapter(uni as unknown as UniStorageRuntime);
+const repository = createApplicationDataRepository({
+  storage,
+  rollbackFiles: files,
+  appVersion: APP_VERSION,
+});
+const exportConfirmations = createPendingExportConfirmationService({
+  storage,
+  repository,
+});
+const {
+  overview,
+  reportOverview,
+  reportMonth,
+  canSelectNextReportMonth,
+  customers,
+  loading,
+  errorMessage,
+  refresh,
+  selectPreviousReportMonth,
+  selectNextReportMonth,
+} = useBeautyHomeOverview(repository);
+const appointmentCalendar = useAppointmentCalendar(repository);
+const activeTab = shallowRef<BeautyModuleTab>("home");
+const navigationBarStyles: Record<
+  BeautyModuleTab,
+  { title: string; backgroundColor: string }
+> = {
+  home: { title: "美容管理", backgroundColor: "#FFF8FA" },
+  schedule: { title: "美容 · 日程", backgroundColor: "#FBF5F7" },
+  reports: { title: "美容 · 报表", backgroundColor: "#FFF2F6" },
+  data: { title: "美容 · 数据", backgroundColor: "#FBF5F7" },
+};
+const backupService = createBackupRestoreService({
+  repository,
+  files,
+  appVersion: APP_VERSION,
+  moduleContext: "beauty",
+  exportConfirmations,
+});
+const {
+  exportState: backupExportState,
+  restoreState: backupRestoreState,
+  busy: backupBusy,
+  initialize: initializeBackup,
+  prepareExport: prepareBackupExport,
+  sharePreparedExport,
+  confirmExportSent,
+  confirmExportCancelled,
+  lastExportedAt,
+  lastExportFileName,
+  prepareCurrentDataBeforeRestore,
+  selectRestoreFile,
+  confirmRestore,
+  resetRestore,
+} = useBackupRestoreFlow({
+  service: backupService,
+  initialExportScope: { kind: "modules", moduleIds: ["beauty"] },
+});
+
+function openInventory(): void {
+  uni.navigateTo({ url: "/pages-beauty/inventory/index" });
+}
+
+function openProjects(): void {
+  uni.navigateTo({ url: "/pages-beauty/beauty-project/index" });
+}
+
+function openCustomers(): void {
+  uni.navigateTo({ url: "/pages-beauty/customer/index" });
+}
+
+function openAppointments(): void {
+  uni.navigateTo({ url: "/pages-beauty/appointment/index" });
+}
+
+/** 从美容首页打开指定近期预约的独立详情页。 */
+function openAppointment(appointmentId: string): void {
+  uni.navigateTo({
+    url: `/pages-beauty/appointment-detail/index?appointmentId=${encodeURIComponent(appointmentId)}`,
+  });
+}
+
+function refreshActiveTab(): void {
+  if (activeTab.value === "schedule") {
+    void appointmentCalendar.refresh();
+  } else if (activeTab.value === "home" || activeTab.value === "reports") {
+    void refresh();
+  }
+}
+
+/** 将模块页签标题及其顶部画布色同步到微信原生导航栏。 */
+function syncNavigationBar(tab: BeautyModuleTab): void {
+  const style = navigationBarStyles[tab];
+  uni.setNavigationBarTitle({ title: style.title });
+  uni.setNavigationBarColor({
+    frontColor: "#000000",
+    backgroundColor: style.backgroundColor,
+  });
+}
+
+/** 切换模块页签，并刷新该页签依赖的本机业务数据。 */
+function selectTab(tab: BeautyModuleTab): void {
+  activeTab.value = tab;
+  syncNavigationBar(tab);
+  refreshActiveTab();
+}
+
+/** 页面重新显示时恢复当前页签的标题、底色和数据。 */
+function handlePageShow(): void {
+  syncNavigationBar(activeTab.value);
+  refreshActiveTab();
+}
+
+async function prepareCurrentBeautyExport(): Promise<void> {
+  await prepareCurrentDataBeforeRestore();
+  if (backupExportState.status === "ready") {
+    uni.pageScrollTo({ selector: ".data-section", duration: 300 });
+  }
+}
+
+function requestBeautyRestoreConfirmation(): void {
+  const candidate = backupRestoreState.candidate;
+  const isSystem = candidate?.scopeKind === "system";
+  uni.showModal({
+    title: isSystem ? "完整恢复系统数据？" : "恢复美容模块数据？",
+    content: isSystem
+      ? "所选文件是完整系统备份，将覆盖全部模块、授权状态和个人设置。"
+      : "只替换美容模块数据，不合并记录；其他模块、授权状态和个人设置保持不变。",
+    confirmText: "确认恢复",
+    confirmColor: "#A94442",
+    cancelText: "再检查",
+    success(result) {
+      if (result.confirm) {
+        void confirmRestore();
+      }
+    },
+    fail() {
+      uni.showToast({ title: "确认框打开失败", icon: "none" });
+    },
+  });
+}
+
+function requestShareResultConfirmation(): void {
+  uni.showModal({
+    title: "备份文件是否已发送？",
+    content: "请按微信聊天中的实际结果确认。若现在不处理，下次进入程序时会再次提醒。",
+    confirmText: "已发送",
+    cancelText: "未发送",
+    confirmColor: "#9A565D",
+    success(result) {
+      if (result.confirm) {
+        void confirmExportSent();
+      } else {
+        void confirmExportCancelled();
+      }
+    },
+    fail() {
+      uni.showToast({ title: "确认框打开失败，下次启动会再次提醒", icon: "none" });
+    },
+  });
+}
+
+async function shareAndConfirmExport(): Promise<void> {
+  await sharePreparedExport();
+  if (backupExportState.status === "awaiting-confirmation") {
+    requestShareResultConfirmation();
+  }
+}
+
+function returnBeautyHome(): void {
+  if (
+    backupRestoreState.status === "interrupted" ||
+    backupRestoreState.candidate?.scopeKind === "system"
+  ) {
+    // 完整系统恢复或未决事务必须重建全局启动流程。
+    uni.reLaunch({ url: "/pages/index/index" });
+    return;
+  }
+  resetRestore();
+  selectTab("home");
+}
+
+onMounted(initializeBackup);
+onShow(handlePageShow);
+</script>
+
+<template>
+  <view class="beauty-page">
+    <BeautyModuleHome
+      v-if="activeTab === 'home'"
+      :overview="overview"
+      :customers="customers"
+      :loading="loading"
+      :error-message="errorMessage"
+      @open-inventory="openInventory"
+      @open-projects="openProjects"
+      @open-customers="openCustomers"
+      @open-appointment="openAppointment"
+      @open-appointments="openAppointments"
+      @retry="refresh"
+    />
+    <AppointmentCalendar
+      v-else-if="activeTab === 'schedule'"
+      :calendar="appointmentCalendar.calendar.value"
+      :week-calendar="appointmentCalendar.weekCalendar.value"
+      :display-mode="appointmentCalendar.displayMode.value"
+      :selected-date-key="appointmentCalendar.selectedDateKey.value"
+      :selected-appointments="appointmentCalendar.selectedAppointments.value"
+      :customers="appointmentCalendar.customers.value"
+      :loading="appointmentCalendar.loading.value"
+      :error-message="appointmentCalendar.errorMessage.value"
+      @previous-period="appointmentCalendar.previousPeriod"
+      @next-period="appointmentCalendar.nextPeriod"
+      @go-today="appointmentCalendar.goToday"
+      @collapse-to-week="appointmentCalendar.collapseToWeek"
+      @expand-to-month="appointmentCalendar.expandToMonth"
+      @select-date="appointmentCalendar.selectDate"
+      @open-appointments="openAppointments"
+      @retry="appointmentCalendar.refresh"
+    />
+    <BeautyReports
+      v-else-if="activeTab === 'reports'"
+      :overview="reportOverview"
+      :month="reportMonth"
+      :can-select-next-month="canSelectNextReportMonth"
+      :loading="loading"
+      :error-message="errorMessage"
+      @previous-month="selectPreviousReportMonth"
+      @next-month="selectNextReportMonth"
+      @retry="refresh"
+    />
+    <BeautyDataPanel
+      v-else
+      :export-state="backupExportState"
+      :restore-state="backupRestoreState"
+      :busy="backupBusy"
+      :last-exported-at="lastExportedAt"
+      :last-export-file-name="lastExportFileName"
+      @prepare-export="prepareBackupExport"
+      @share-export="shareAndConfirmExport"
+      @confirm-export-sent="confirmExportSent"
+      @confirm-export-cancelled="confirmExportCancelled"
+      @select-restore="selectRestoreFile"
+      @prepare-current-export="prepareCurrentBeautyExport"
+      @proceed-restore="requestBeautyRestoreConfirmation"
+      @return-home="returnBeautyHome"
+    />
+    <BeautyModuleNavigation :active-tab="activeTab" @select="selectTab" />
+  </view>
+</template>
+
+<style scoped>
+.beauty-page {
+  min-height: 100vh;
+  background: #fbf5f7;
+}
+
+</style>

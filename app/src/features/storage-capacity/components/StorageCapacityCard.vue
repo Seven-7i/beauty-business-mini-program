@@ -24,7 +24,9 @@ const usedText = computed(() => {
 });
 
 const progressStyle = computed(() => ({
-  width: `${Math.min(100, props.capacity?.usedPercentOfTarget ?? 0).toFixed(1)}%`,
+  transform: `scaleX(${(
+    Math.min(100, props.capacity?.usedPercentOfTarget ?? 0) / 100
+  ).toFixed(3)})`,
 }));
 
 const announcedValue = computed(() =>
@@ -204,10 +206,12 @@ const statusText = computed(() => {
 }
 
 .storage-card__progress {
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: #3d4a5d;
-  transition: width 220ms ease;
+  transform-origin: left center;
+  transition: transform 220ms ease;
 }
 
 .storage-card--warning .storage-card__progress {

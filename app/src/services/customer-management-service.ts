@@ -44,7 +44,6 @@ export function createCustomerManagementService(
   options: CustomerManagementServiceOptions,
 ) {
   const {
-    repository,
     now = () => new Date(),
     createId = defaultCreateId,
   } = options;

@@ -1,6 +1,6 @@
 {
   "name": "beauty-business-mini-program",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "scripts": {
     "dev:custom": "uni -p",
     "dev:h5": "uni",
@@ -37,7 +37,9 @@
     "generate:icons": "node scripts/generate-icon-font.mjs",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "lint": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "check:mp-weixin-size": "node scripts/check-mp-weixin-size.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4080420251103001",

@@ -1,0 +1,19 @@
+{
+  "description": "庄月空间微信小程序项目配置。",
+  "packOptions": {
+    "ignore": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": false,
+    "newFeature": true,
+    "bigPackageSizeSupport": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "",
+  "appid": "wx4275c797d569957a",
+  "projectname": "庄月空间",
+  "condition": {}
+}

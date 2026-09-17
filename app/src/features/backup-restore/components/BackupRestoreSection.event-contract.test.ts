@@ -9,9 +9,9 @@ describe("restore confirmation component event", () => {
   it("uses one lowercase event name across every WeChat component boundary", () => {
     const section = readComponent("./BackupRestoreSection.vue");
     const panel = readComponent("./BackupRestorePanel.vue");
-    const beautyPage = readComponent("../../../pages/beauty/index.vue");
+    const beautyPage = readComponent("../../../pages-beauty/beauty/index.vue");
     const beautyDataPanel = readComponent(
-      "../../beauty-module/components/BeautyDataPanel.vue",
+      "../../../pages-beauty/features/beauty-module/components/BeautyDataPanel.vue",
     );
     const systemPage = readComponent("../../../pages/backup-restore/index.vue");
 

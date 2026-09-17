@@ -153,7 +153,7 @@ function showUsageGuide(): void {
  */
 function openModule(moduleId: BusinessModuleId): Promise<void> {
   const moduleRoutes: Record<BusinessModuleId, string> = {
-    beauty: "/pages/beauty/index",
+    beauty: "/pages-beauty/beauty/index",
   };
   return new Promise((resolve) => {
     uni.navigateTo({
@@ -195,7 +195,7 @@ async function requestHistoryCleanup(): Promise<void> {
       confirmColor: "#9A4A47",
       success(result) {
         if (result.confirm) {
-          uni.navigateTo({ url: "/pages/history-cleanup/index" });
+          uni.navigateTo({ url: "/pages-beauty/history-cleanup/index" });
         }
       },
     });

@@ -1,0 +1,28 @@
+// 美容模块私有视觉 token。仅允许 pages-beauty 及其内部 feature 使用。
+// Sass 变量在构建期展开，不会生成全局运行时 token，也不会被主包单独加载。
+$surface-page-rose: #fbf5f7;
+$surface-page-blush: #fff8fa;
+$surface-page-violet: #fbf8fb;
+$surface-card: #fff;
+$surface-accent-soft: #f0e8f6;
+$surface-accent-subtle: #f4edf8;
+$surface-danger-soft: #fff0f1;
+
+$text-strong: #25212a;
+$text-body: #4d464c;
+$text-muted: #766f7c;
+$text-subtle: #817987;
+
+$accent: #6a43b0;
+$accent-strong: #4d33df;
+$accent-focus: #6548ed;
+$danger: #d92f42;
+$danger-strong: #ef3043;
+$success: #3f9b68;
+
+$border-soft: #efebf1;
+$border-field: #e1dde6;
+$shadow-card: 0 18rpx 44rpx rgba(139, 84, 109, 0.08);
+$press-duration: 120ms;
+
+$touch-target-min: 88rpx;

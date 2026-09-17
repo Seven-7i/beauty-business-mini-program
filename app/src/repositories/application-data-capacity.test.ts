@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApplicationData } from "@/domain/data-schema";
-import { filterCustomers } from "@/features/customer/customer-filter";
+import { filterCustomers } from "@/pages-beauty/features/customer/customer-filter";
 import type {
   StorageAdapter,
   StorageCapacityInfo,

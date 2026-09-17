@@ -31,134 +31,29 @@
 				"navigationBarBackgroundColor": "#F3F1EC",
 				"navigationBarTextStyle": "black"
 			}
-		},
+		}
+	],
+	"subPackages": [
 		{
-			"path": "pages/inventory/index",
-			"style": {
-				"navigationBarTitleText": "库存物品",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/inventory-create/index",
-			"style": {
-				"navigationBarTitleText": "新增库存物品",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/inventory-detail/index",
-			"style": {
-				"navigationBarTitleText": "物品详情",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/inventory-adjustment/index",
-			"style": {
-				"navigationBarTitleText": "库存调整",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/inventory-profile-edit/index",
-			"style": {
-				"navigationBarTitleText": "编辑物品资料",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/beauty/index",
-			"style": {
-				"navigationBarTitleText": "美容管理",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/beauty-project/index",
-			"style": {
-				"navigationBarTitleText": "服务项目",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/beauty-project-create/index",
-			"style": {
-				"navigationBarTitleText": "新增服务项目",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/beauty-project-detail/index",
-			"style": {
-				"navigationBarTitleText": "项目详情",
-				"navigationBarBackgroundColor": "#FFF8FA",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/customer/index",
-			"style": {
-				"navigationBarTitleText": "顾客管理",
-				"navigationBarBackgroundColor": "#FBF5F7",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/customer-create/index",
-			"style": {
-				"navigationBarTitleText": "新增顾客",
-				"navigationBarBackgroundColor": "#FBF5F7",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/customer-detail/index",
-			"style": {
-				"navigationBarTitleText": "顾客详情",
-				"navigationBarBackgroundColor": "#FBF5F7",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/appointment/index",
-			"style": {
-				"navigationBarTitleText": "预约执行",
-				"navigationBarBackgroundColor": "#FBF8FB",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/appointment-create/index",
-			"style": {
-				"navigationBarTitleText": "新增预约",
-				"navigationBarBackgroundColor": "#FBF8FB",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/appointment-detail/index",
-			"style": {
-				"navigationBarTitleText": "预约详情",
-				"navigationBarBackgroundColor": "#FBF8FB",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/history-cleanup/index",
-			"style": {
-				"navigationBarTitleText": "预约历史清理",
-				"navigationBarBackgroundColor": "#F8F9FB",
-				"navigationBarTextStyle": "black"
-			}
+			"root": "pages-beauty",
+			"pages": [
+				{ "path": "inventory/index", "style": { "navigationBarTitleText": "库存物品", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "inventory-create/index", "style": { "navigationBarTitleText": "新增库存物品", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "inventory-detail/index", "style": { "navigationBarTitleText": "物品详情", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "inventory-adjustment/index", "style": { "navigationBarTitleText": "库存调整", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "inventory-profile-edit/index", "style": { "navigationBarTitleText": "编辑物品资料", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "beauty/index", "style": { "navigationBarTitleText": "美容管理", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "beauty-project/index", "style": { "navigationBarTitleText": "服务项目", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "beauty-project-create/index", "style": { "navigationBarTitleText": "新增服务项目", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "beauty-project-detail/index", "style": { "navigationBarTitleText": "项目详情", "navigationBarBackgroundColor": "#FFF8FA", "navigationBarTextStyle": "black" } },
+				{ "path": "customer/index", "style": { "navigationBarTitleText": "顾客管理", "navigationBarBackgroundColor": "#FBF5F7", "navigationBarTextStyle": "black" } },
+				{ "path": "customer-create/index", "style": { "navigationBarTitleText": "新增顾客", "navigationBarBackgroundColor": "#FBF5F7", "navigationBarTextStyle": "black" } },
+				{ "path": "customer-detail/index", "style": { "navigationBarTitleText": "顾客详情", "navigationBarBackgroundColor": "#FBF5F7", "navigationBarTextStyle": "black" } },
+				{ "path": "appointment/index", "style": { "navigationBarTitleText": "预约执行", "navigationBarBackgroundColor": "#FBF8FB", "navigationBarTextStyle": "black" } },
+				{ "path": "appointment-create/index", "style": { "navigationBarTitleText": "新增预约", "navigationBarBackgroundColor": "#FBF8FB", "navigationBarTextStyle": "black" } },
+				{ "path": "appointment-detail/index", "style": { "navigationBarTitleText": "预约详情", "navigationBarBackgroundColor": "#FBF8FB", "navigationBarTextStyle": "black" } },
+				{ "path": "history-cleanup/index", "style": { "navigationBarTitleText": "预约历史清理", "navigationBarBackgroundColor": "#F8F9FB", "navigationBarTextStyle": "black" } }
+			]
 		}
 	],
 	"globalStyle": {
